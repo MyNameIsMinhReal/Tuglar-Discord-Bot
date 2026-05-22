@@ -76,6 +76,21 @@ export function initDatabase(): void {
       PRIMARY KEY (user_id, guild_id, challenge_date)
     );
 
+    CREATE TABLE IF NOT EXISTS challenge_pending (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id        TEXT NOT NULL,
+      guild_id       TEXT NOT NULL,
+      challenge_date TEXT NOT NULL,
+      challenge_text TEXT NOT NULL,
+      image_url      TEXT NOT NULL,
+      difficulty     TEXT NOT NULL,
+      message_id     TEXT,
+      status         TEXT DEFAULT 'pending',
+      reviewed_by    TEXT,
+      created_at     TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_id, guild_id, challenge_date)
+    );
+
     CREATE TABLE IF NOT EXISTS warn_log (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id    TEXT NOT NULL,

@@ -80,6 +80,20 @@ export interface ChallengeLogRow {
   used_grace: number;
 }
 
+export interface ChallengePendingRow {
+  id: number;
+  user_id: string;
+  guild_id: string;
+  challenge_date: string;
+  challenge_text: string;
+  image_url: string;
+  difficulty: string;
+  message_id: string | null;
+  status: 'pending' | 'approved' | 'denied';
+  reviewed_by: string | null;
+  created_at: string;
+}
+
 export interface GachaItem {
   id: string;
   name: string;

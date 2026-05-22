@@ -1,10 +1,17 @@
 import { Interaction, EmbedBuilder, MessageFlags } from 'discord.js';
 import { COLOR } from '../utils/embeds';
+import { handleApprove, handleDeny } from '../commands/challenge';
 
 export const name = 'interactionCreate';
 export const once = false;
 
 export async function execute(interaction: Interaction): Promise<void> {
+  if (interaction.isButton()) {
+    if (interaction.customId.startsWith('ch_approve:')) return handleApprove(interaction);
+    if (interaction.customId.startsWith('ch_deny:')) return handleDeny(interaction);
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = interaction.client.commands.get(interaction.commandName);
