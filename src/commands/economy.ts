@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import * as Eco from '../services/EconomyService';
-import { COLOR } from '../utils/embeds';
+import { COLOR, errorEmbed } from '../utils/embeds';
 import { formatCoins } from '../utils/helpers';
 import path from 'path';
 import fs from 'fs';
@@ -48,20 +48,30 @@ async function handleDaily(i: ChatInputCommandInteraction): Promise<void> {
   if (!canClaim) {
     const h = Math.floor(hoursLeft);
     const m = Math.floor((hoursLeft - h) * 60);
-    return void await i.reply({
-      content: `chưa đến giờ đâu, còn **${h}h ${m}m** nữa mới được nhận tiếp nha`,
+    await i.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.WARNING)
+        .setTitle('⏳ Chưa đến giờ!')
+        .setDescription(`Còn **${h}h ${m}m** nữa mới được nhận tiếp nhé.`)],
       ephemeral: true,
     });
+    return;
   }
 
   const reward = Eco.claimDaily(i.user.id, i.guildId!);
-  const user = Eco.getOrCreate(i.user.id, i.guildId!);
-  const msgs = [
-    `đây **+${formatCoins(reward)} coins** của bạn! số dư hiện tại: **${formatCoins(user.balance)} coins**`,
-    `daily nhận rồi nha — **+${formatCoins(reward)} coins**! còn **${formatCoins(user.balance)} coins** tổng cộng`,
-    `**+${formatCoins(reward)} coins** điểm danh xong! ví bạn có **${formatCoins(user.balance)} coins**`,
-  ];
-  await i.reply({ content: msgs[Math.floor(Math.random() * msgs.length)] });
+  const user   = Eco.getOrCreate(i.user.id, i.guildId!);
+
+  await i.reply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.ECONOMY)
+      .setTitle('💰 Điểm danh hàng ngày!')
+      .addFields(
+        { name: '🎁 Nhận được', value: `**+${formatCoins(reward)} coins**`, inline: true },
+        { name: '👛 Số dư hiện tại', value: `**${formatCoins(user.balance)} coins**`, inline: true },
+      )
+      .setFooter({ text: 'Quay lại ngày mai để nhận tiếp!' })
+      .setTimestamp()],
+  });
 }
 
 async function handleBalance(i: ChatInputCommandInteraction): Promise<void> {
@@ -71,23 +81,43 @@ async function handleBalance(i: ChatInputCommandInteraction): Promise<void> {
   ).get(i.guildId!, user.balance) as any).rank;
 
   await i.reply({
-    content: `ví của bạn: **${formatCoins(user.balance)} coins** | hạng #${rank} trên server\ntổng kiếm được từ trước đến nay: ${formatCoins(user.total_earned)} coins`,
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.ECONOMY)
+      .setTitle(`👛 Ví — ${i.user.displayName}`)
+      .setThumbnail(i.user.displayAvatarURL())
+      .addFields(
+        { name: '💰 Số dư', value: `**${formatCoins(user.balance)} coins**`, inline: true },
+        { name: '🏆 Hạng', value: `**#${rank}** trên server`, inline: true },
+        { name: '📈 Tổng kiếm được', value: `${formatCoins(user.total_earned)} coins`, inline: true },
+      )
+      .setTimestamp()],
   });
 }
 
 async function handleLeaderboard(i: ChatInputCommandInteraction): Promise<void> {
   const top = Eco.getLeaderboard(i.guildId!, 10);
   if (top.length === 0) {
-    return void await i.reply({ content: 'chưa có ai có coins hết 😅' });
+    await i.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.INFO)
+        .setDescription('Chưa có ai có coins hết 😅')],
+    });
+    return;
   }
 
   const medals = ['🥇', '🥈', '🥉'];
   const lines = top.map((u, idx) => {
-    const me = u.user_id === i.user.id ? ' ← bạn' : '';
+    const me = u.user_id === i.user.id ? ' **← bạn**' : '';
     return `${medals[idx] ?? `${idx + 1}.`} <@${u.user_id}> — **${formatCoins(u.balance)} coins**${me}`;
   });
 
-  await i.reply({ content: `top giàu nhất server:\n\n${lines.join('\n')}` });
+  await i.reply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.ECONOMY)
+      .setTitle('🏆 Top giàu nhất server')
+      .setDescription(lines.join('\n'))
+      .setTimestamp()],
+  });
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -126,44 +156,77 @@ async function handleBuy(i: ChatInputCommandInteraction): Promise<void> {
   const itemId = i.options.getString('item_id', true);
   const item = shopItems.find(s => s.id === itemId);
   if (!item) {
-    return void await i.reply({ content: `không tìm thấy item \`${itemId}\` đâu cả`, ephemeral: true });
+    await i.reply({ embeds: [errorEmbed(`Không tìm thấy item \`${itemId}\`.`)], ephemeral: true });
+    return;
   }
 
   const success = Eco.deductCoins(i.user.id, i.guildId!, item.price);
   if (!success) {
     const user = Eco.getOrCreate(i.user.id, i.guildId!);
-    return void await i.reply({
-      content: `không đủ tiền rồi 😅 cần **${formatCoins(item.price)} coins** nhưng bạn chỉ có **${formatCoins(user.balance)} coins**`,
+    await i.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.DANGER)
+        .setTitle('❌ Không đủ coins!')
+        .addFields(
+          { name: '💸 Cần', value: `${formatCoins(item.price)} coins`, inline: true },
+          { name: '👛 Bạn có', value: `${formatCoins(user.balance)} coins`, inline: true },
+        )],
       ephemeral: true,
     });
+    return;
   }
 
   db.prepare(
     'INSERT INTO shop_purchases (user_id, guild_id, item_id, item_name, price) VALUES (?, ?, ?, ?, ?)'
   ).run(i.user.id, i.guildId!, item.id, item.name, item.price);
 
-  await i.reply({ content: `mua **${item.emoji} ${item.name}** thành công! liên hệ admin để nhận quyền lợi nha` });
+  await i.reply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.SUCCESS)
+      .setTitle('🛍️ Mua thành công!')
+      .setDescription(`${item.emoji} **${item.name}**\n${item.description}`)
+      .setFooter({ text: 'Liên hệ admin để nhận quyền lợi nha' })],
+  });
 }
 
 async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
   const target = i.options.getUser('user', true);
   const amount = i.options.getInteger('amount', true);
 
-  if (target.id === i.user.id) return void await i.reply({ content: 'tự chuyển cho mình thì không được đâu 😄', ephemeral: true });
-  if (target.bot) return void await i.reply({ content: 'bot không nhận tiền đâu bạn ơi', ephemeral: true });
+  if (target.id === i.user.id) {
+    await i.reply({ embeds: [errorEmbed('Không thể tự chuyển cho mình 😄')], ephemeral: true });
+    return;
+  }
+  if (target.bot) {
+    await i.reply({ embeds: [errorEmbed('Bot không nhận tiền đâu bạn ơi.')], ephemeral: true });
+    return;
+  }
 
   const success = Eco.deductCoins(i.user.id, i.guildId!, amount);
   if (!success) {
     const user = Eco.getOrCreate(i.user.id, i.guildId!);
-    return void await i.reply({
-      content: `không đủ tiền, bạn chỉ có **${formatCoins(user.balance)} coins** thôi`,
+    await i.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.DANGER)
+        .setTitle('❌ Không đủ coins!')
+        .setDescription(`Bạn chỉ có **${formatCoins(user.balance)} coins** thôi.`)],
       ephemeral: true,
     });
+    return;
   }
 
   Eco.addCoins(target.id, i.guildId!, amount);
-  const bal = Eco.getOrCreate(i.user.id, i.guildId!).balance;
+  const remaining = Eco.getOrCreate(i.user.id, i.guildId!).balance;
+
   await i.reply({
-    content: `chuyển **${formatCoins(amount)} coins** cho <@${target.id}> xong rồi!\nbạn còn lại **${formatCoins(bal)} coins**`,
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.SUCCESS)
+      .setTitle('💸 Chuyển tiền thành công!')
+      .addFields(
+        { name: '👤 Người nhận', value: `<@${target.id}>`, inline: true },
+        { name: '💰 Số tiền', value: `**${formatCoins(amount)} coins**`, inline: true },
+        { name: '👛 Còn lại', value: `${formatCoins(remaining)} coins`, inline: true },
+      )
+      .setTimestamp()],
   });
 }

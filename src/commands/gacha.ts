@@ -77,7 +77,14 @@ async function handleRoll(i: ChatInputCommandInteraction, count: number): Promis
 
   if (user.balance < cost) {
     await i.reply({
-      content: `không đủ coins rồi 😅 cần **${formatCoins(cost)} coins** mà bạn chỉ có **${formatCoins(user.balance)}**\ndùng \`/eco daily\` để kiếm thêm nha`,
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.DANGER)
+        .setTitle('❌ Không đủ coins!')
+        .addFields(
+          { name: '💸 Cần', value: `${formatCoins(cost)} coins`, inline: true },
+          { name: '👛 Bạn có', value: `${formatCoins(user.balance)} coins`, inline: true },
+        )
+        .setFooter({ text: 'Dùng /eco daily để kiếm thêm nha' })],
       ephemeral: true,
     });
     return;
@@ -96,7 +103,11 @@ async function handleRoll(i: ChatInputCommandInteraction, count: number): Promis
     };
 
     await i.reply({
-      content: `${rarityMsg[item.rarity]}\n**${item.emoji} ${item.name}** — ${item.rarity} ${RARITY_STARS[item.rarity]}\n${item.description}\n\n*roll lần ${total} | tốn ${formatCoins(cost)} coins*`,
+      embeds: [new EmbedBuilder()
+        .setColor(RARITY_COLORS[item.rarity] ?? 0x9E9E9E)
+        .setTitle(`${item.emoji} ${item.name}`)
+        .setDescription(`## ${item.rarity} ${RARITY_STARS[item.rarity]}\n\n${item.description}\n\n${rarityMsg[item.rarity]}`)
+        .setFooter({ text: `Roll lần ${total} · Tốn ${formatCoins(cost)} coins` })],
     });
     return;
   }
@@ -108,16 +119,26 @@ async function handleRoll(i: ChatInputCommandInteraction, count: number): Promis
   });
 
   const order: Record<string, number> = { SSR: 0, SR: 1, R: 2, N: 3 };
-  const best = results.reduce((a, b) => order[a.rarity] < order[b.rarity] ? a : b, results[0]);
-
-  const lines    = results.map(item => `${item.emoji} ${item.name} — ${item.rarity}`);
+  const best     = results.reduce((a, b) => order[a.rarity] < order[b.rarity] ? a : b, results[0]);
+  const lines    = results.map(item => `${item.emoji} **${item.name}** — ${item.rarity} ${RARITY_STARS[item.rarity]}`);
   const ssrCount = results.filter(r => r.rarity === 'SSR').length;
-  const summary  = ssrCount > 0
-    ? `${ssrCount} SSR trong lần này!! 🎉`
-    : `tốt nhất: **${best.emoji} ${best.name}** (${best.rarity})`;
+  const srCount  = results.filter(r => r.rarity === 'SR').length;
+
+  let highlight = `\nTốt nhất: **${best.emoji} ${best.name}** (${best.rarity})`;
+  if (ssrCount > 0) highlight = `\n🎉 **${ssrCount} SSR trong lần này!!**`;
+  else if (srCount > 0) highlight = `\n⭐ SR rồi, không tệ!`;
+
+  let color = COLOR.INFO;
+  if (ssrCount > 0) color = RARITY_COLORS.SSR;
+  else if (srCount > 0) color = RARITY_COLORS.SR;
+  const remaining = Eco.getOrCreate(i.user.id, i.guildId).balance;
 
   await i.reply({
-    content: `kết quả roll x${count}:\n\n${lines.join('\n')}\n\n${summary}\n*tốn ${formatCoins(cost)} coins | còn ${formatCoins(Eco.getOrCreate(i.user.id, i.guildId).balance)} coins*`,
+    embeds: [new EmbedBuilder()
+      .setColor(color)
+      .setTitle(`🎰 Roll x${count} — Kết quả`)
+      .setDescription(lines.join('\n') + highlight)
+      .setFooter({ text: `Tốn ${formatCoins(cost)} coins · Còn lại ${formatCoins(remaining)} coins` })],
   });
 }
 
@@ -272,7 +293,12 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
   const total     = Gacha.getTotalRolls(i.user.id, i.guildId);
 
   if (inventory.length === 0) {
-    await i.reply({ content: 'kho trống không, dùng `/gacha roll` hoặc `/gacha pack` để bắt đầu thôi 🎰' });
+    await i.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.INFO)
+        .setTitle('🎒 Kho trống!')
+        .setDescription('Dùng `/gacha roll` hoặc `/gacha pack` để bắt đầu 🎰')],
+    });
     return;
   }
 
@@ -283,11 +309,20 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
     grouped[item.item_rarity].push(`${item.item_emoji} ${item.item_name}${tag}`);
   }
 
-  const lines = Object.entries(grouped)
-    .filter(([, items]) => items.length > 0)
-    .map(([rarity, items]) => `**${rarity}:** ${items.join(', ')}`);
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.INFO)
+    .setTitle(`🎒 Kho của ${i.user.displayName}`)
+    .setThumbnail(i.user.displayAvatarURL())
+    .setFooter({ text: `Tổng ${total} lần roll` });
 
-  await i.reply({ content: `kho của bạn (${total} lần roll tổng cộng):\n\n${lines.join('\n')}` });
+  for (const rarity of ['SSR', 'SR', 'R', 'N']) {
+    const items = grouped[rarity];
+    if (items && items.length > 0) {
+      embed.addFields({ name: `${rarity} ${RARITY_STARS[rarity]}`, value: items.join(', ') });
+    }
+  }
+
+  await i.reply({ embeds: [embed] });
 }
 
 // ── Pool ───────────────────────────────────────────────────────────
@@ -306,6 +341,13 @@ async function handlePool(i: ChatInputCommandInteraction): Promise<void> {
   });
 
   await i.reply({
-    content: `tỷ lệ gacha:\n\n${lines.join('\n')}\n\n*1 roll = ${ROLL_COST} coins | 10 roll = ${ROLL_COST * 9} coins | pack 5 lá = ${PACK_COST} coins (guaranteed R+)*`,
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.INFO)
+      .setTitle('🎴 Tỷ lệ Gacha')
+      .setDescription(lines.join('\n'))
+      .addFields({
+        name: '💰 Chi phí',
+        value: `1 roll = **${ROLL_COST} coins** | 10 roll = **${ROLL_COST * 9} coins** | Pack 5 lá = **${PACK_COST} coins** (guaranteed R+)`,
+      })],
   });
 }

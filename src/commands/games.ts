@@ -186,7 +186,11 @@ async function handleGuessStart(i: ChatInputCommandInteraction): Promise<void> {
     } else {
       const hint = guess < game.target ? '📈 Lớn hơn' : '📉 Nhỏ hơn';
       const left = game.max - game.attempts;
-      await msg.reply(`${hint}! Còn **${left} lượt** nữa.`);
+      await msg.reply({
+        embeds: [new EmbedBuilder()
+          .setColor(COLOR.WARNING)
+          .setDescription(`${hint}! Còn **${left} lượt** nữa.`)],
+      });
     }
   });
 

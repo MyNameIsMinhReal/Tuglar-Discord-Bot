@@ -10,6 +10,7 @@ import {
 import { db } from '../database';
 import { Challenge, ChallengeLogRow, ChallengePendingRow } from '../types';
 import * as Eco from '../services/EconomyService';
+import { COLOR } from '../utils/embeds';
 import { formatCoins } from '../utils/helpers';
 import path from 'path';
 import fs from 'fs';
@@ -133,19 +134,28 @@ async function handleToday(i: ChatInputCommandInteraction): Promise<void> {
 
   const nextMilestone = MILESTONES.slice().reverse().find(m => streak + 1 < m.streak);
 
-  let msg =
-    `**${challenge.emoji} ${challenge.text}**\n` +
-    `${DIFF_LABEL[challenge.difficulty]} · Phần thưởng: **${formatCoins(total)} coins**` +
-    (bonus > 0 ? ` (base + **+${bonus}** streak bonus)` : '') + '\n\n' +
-    `Trạng thái: ${status} | Streak hiện tại: **${streak} ngày** | Grace: ${graceStatus}`;
+  const rewardStr = bonus > 0
+    ? `**${formatCoins(total)} coins** (base + **+${bonus}** streak bonus)`
+    : `**${formatCoins(total)} coins**`;
 
-  if (nextMilestone) {
-    msg += `\nMốc tiếp theo: **${nextMilestone.label}** — còn **${nextMilestone.streak - streak} ngày**`;
-  }
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.WARNING)
+    .setTitle(`${challenge.emoji} Thử thách hôm nay`)
+    .setDescription(`**${challenge.text}**`)
+    .addFields(
+      { name: '🎯 Độ khó', value: DIFF_LABEL[challenge.difficulty], inline: true },
+      { name: '💰 Phần thưởng', value: rewardStr, inline: true },
+      { name: '📊 Trạng thái', value: status, inline: true },
+      { name: '🔥 Streak', value: `${streak} ngày`, inline: true },
+      { name: '🛡️ Grace', value: graceStatus, inline: true },
+      ...(nextMilestone
+        ? [{ name: '🏆 Mốc tiếp theo', value: `${nextMilestone.label} — còn **${nextMilestone.streak - streak} ngày**`, inline: true }]
+        : []),
+    )
+    .setFooter({ text: 'Dùng /challenge done + ảnh để nộp bài' })
+    .setTimestamp();
 
-  msg += '\n\n*Dùng `/challenge done` sau khi hoàn thành*';
-
-  await i.reply({ content: msg });
+  await i.reply({ embeds: [embed] });
 }
 
 async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
@@ -349,15 +359,22 @@ async function handleStreak(i: ChatInputCommandInteraction): Promise<void> {
   const nextMilestone = MILESTONES.slice().reverse().find(m => current < m.streak);
   const graceAvail = !hasUsedGrace(i.user.id, guildId);
 
-  let msg = `📊 **Streak của bạn**\n`;
-  msg += `Hiện tại: **${current} ngày** | Kỷ lục: **${max} ngày** | Tổng hoàn thành: **${total} ngày**\n`;
-  msg += `Grace tuần này: ${graceAvail ? '🟢 còn 1 lần' : '🔴 đã dùng'}`;
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.PRIMARY)
+    .setTitle('📊 Streak của bạn')
+    .setThumbnail(i.user.displayAvatarURL())
+    .addFields(
+      { name: '🔥 Streak hiện tại', value: `**${current} ngày**`, inline: true },
+      { name: '🏆 Kỷ lục', value: `**${max} ngày**`, inline: true },
+      { name: '✅ Tổng hoàn thành', value: `**${total} ngày**`, inline: true },
+      { name: '🛡️ Grace tuần này', value: graceAvail ? '🟢 Còn 1 lần' : '🔴 Đã dùng', inline: true },
+      ...(nextMilestone
+        ? [{ name: '🎯 Mốc tiếp theo', value: `${nextMilestone.label} — còn **${nextMilestone.streak - current} ngày**`, inline: true }]
+        : []),
+    )
+    .setTimestamp();
 
-  if (nextMilestone) {
-    msg += `\n\nMốc tiếp theo: **${nextMilestone.label}** — còn **${nextMilestone.streak - current} ngày** nữa`;
-  }
-
-  await i.reply({ content: msg });
+  await i.reply({ embeds: [embed] });
 }
 
 async function handleLeaderboard(i: ChatInputCommandInteraction): Promise<void> {
@@ -368,15 +385,26 @@ async function handleLeaderboard(i: ChatInputCommandInteraction): Promise<void> 
   `).all(i.guildId) as unknown as Array<{ user_id: string; max_streak: number; total_done: number }>;
 
   if (top.length === 0) {
-    return void await i.reply({ content: 'chưa có ai làm thử thách hết 😅' });
+    await i.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.INFO)
+        .setDescription('Chưa có ai làm thử thách hết 😅')],
+    });
+    return;
   }
 
   const medals = ['🥇', '🥈', '🥉'];
   const lines = top.map((u, idx) => {
-    const me = u.user_id === i.user.id ? ' ← bạn' : '';
+    const me = u.user_id === i.user.id ? ' **← bạn**' : '';
     const prefix = medals[idx] ?? `${idx + 1}.`;
     return `${prefix} <@${u.user_id}> — streak **${u.max_streak} ngày** | ${u.total_done} ngày tổng${me}`;
   });
 
-  await i.reply({ content: `ai chăm nhất server:\n\n${lines.join('\n')}` });
+  await i.reply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.WARNING)
+      .setTitle('🏆 Ai chăm nhất server?')
+      .setDescription(lines.join('\n'))
+      .setTimestamp()],
+  });
 }

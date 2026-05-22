@@ -2,7 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from '
 import { db } from '../database';
 import { DeadlineRow } from '../types';
 import { parseDate, formatDate, relativeTime } from '../utils/helpers';
-import { COLOR } from '../utils/embeds';
+import { COLOR, errorEmbed, successEmbed } from '../utils/embeds';
 
 export const data = new SlashCommandBuilder()
   .setName('deadline')
@@ -47,23 +47,33 @@ async function handleAdd(i: ChatInputCommandInteraction): Promise<void> {
 
   const dueDate = parseDate(dateStr);
   if (!dueDate) {
-    return void await i.reply({
-      content: 'ngày giờ không đúng định dạng rồi, nhập kiểu này nha: `DD/MM/YYYY HH:mm`\nví dụ: `25/12/2025 23:59`',
+    await i.reply({
+      embeds: [errorEmbed('Ngày giờ không đúng định dạng!\nNhập theo kiểu: `DD/MM/YYYY HH:mm`\nVí dụ: `25/12/2025 23:59`')],
       ephemeral: true,
     });
+    return;
   }
   if (dueDate < new Date()) {
-    return void await i.reply({ content: 'ngày đó đã qua rồi bạn ơi 😅', ephemeral: true });
+    await i.reply({ embeds: [errorEmbed('Ngày đó đã qua rồi 😅')], ephemeral: true });
+    return;
   }
 
   const result = db.prepare(
     'INSERT INTO deadlines (user_id, guild_id, channel_id, title, subject, due_date) VALUES (?, ?, ?, ?, ?, ?)'
   ).run(i.user.id, i.guildId!, i.channelId, title, subject, dueDate.toISOString());
 
-  const subjStr = subject ? ` môn **${subject}**,` : '';
-  await i.reply({
-    content: `oke mình nhớ rồi nha —${subjStr} **${title}** hạn ${formatDate(dueDate)} (${relativeTime(dueDate)})\nmã số #${result.lastInsertRowid} nhé`,
-  });
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.SUCCESS)
+    .setTitle('✅ Đã thêm deadline')
+    .addFields(
+      { name: '📌 Tên', value: title, inline: true },
+      { name: '🔖 ID', value: `#${result.lastInsertRowid}`, inline: true },
+      ...(subject ? [{ name: '📚 Môn', value: subject, inline: true }] : []),
+      { name: '⏰ Hạn nộp', value: `${formatDate(dueDate)} (${relativeTime(dueDate)})` },
+    )
+    .setTimestamp();
+
+  await i.reply({ embeds: [embed] });
 }
 
 async function handleList(i: ChatInputCommandInteraction): Promise<void> {
@@ -75,21 +85,32 @@ async function handleList(i: ChatInputCommandInteraction): Promise<void> {
   `).all(i.user.id, i.guildId!) as unknown as DeadlineRow[];
 
   if (deadlines.length === 0) {
-    return void await i.reply({ content: 'không có deadline nào hết, thoải mái đi 😎' });
+    await i.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.SUCCESS)
+        .setTitle('🎉 Không có deadline nào!')
+        .setDescription('Thoải mái đi, không có gì cần lo hết 😎')],
+    });
+    return;
   }
 
   const lines = deadlines.map(d => {
-    const due = new Date(d.due_date);
+    const due  = new Date(d.due_date);
     const diff = due.getTime() - Date.now();
-    const rel = relativeTime(due);
-    const subj = d.subject ? ` [${d.subject}]` : '';
+    const rel  = relativeTime(due);
+    const subj = d.subject ? ` \`[${d.subject}]\`` : '';
     const done = d.is_done ? ' ~~xong~~' : diff < 0 ? ' **⚠️ quá hạn**' : '';
-    return `**#${d.id}**${subj} ${d.title}${done} — ${rel}`;
+    return `**#${d.id}**${subj} ${d.title}${done}\n> ⏰ ${rel}`;
   });
 
-  await i.reply({
-    content: `đây là deadline của bạn:\n\n${lines.join('\n')}\n\n*dùng \`/deadline done <id>\` để đánh dấu xong*`,
-  });
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.WARNING)
+    .setTitle(`📋 Deadline của bạn (${deadlines.length})`)
+    .setDescription(lines.join('\n\n'))
+    .setFooter({ text: 'Dùng /deadline done <id> để đánh dấu hoàn thành' })
+    .setTimestamp();
+
+  await i.reply({ embeds: [embed] });
 }
 
 async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
@@ -99,16 +120,24 @@ async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
   ).get(id, i.user.id) as unknown as DeadlineRow | undefined;
 
   if (!deadline) {
-    return void await i.reply({ content: `không tìm thấy deadline #${id} của bạn`, ephemeral: true });
+    await i.reply({ embeds: [errorEmbed(`Không tìm thấy deadline **#${id}** của bạn.`)], ephemeral: true });
+    return;
   }
 
   db.prepare('UPDATE deadlines SET is_done = 1 WHERE id = ?').run(id);
+
   const msgs = [
-    `xong **${deadline.title}** rồi! cố lên nha 💪`,
-    `nice, **${deadline.title}** done! tiếp tục phát huy`,
-    `hoàn thành **${deadline.title}** rồi đó, giỏi ghê 🎉`,
+    'Cố lên nha 💪',
+    'Tiếp tục phát huy!',
+    'Giỏi ghê 🎉',
   ];
-  await i.reply({ content: msgs[Math.floor(Math.random() * msgs.length)] });
+
+  await i.reply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.SUCCESS)
+      .setTitle('✅ Hoàn thành rồi!')
+      .setDescription(`**${deadline.title}** đã được đánh dấu xong.\n${msgs[Math.floor(Math.random() * msgs.length)]}`)],
+  });
 }
 
 async function handleDelete(i: ChatInputCommandInteraction): Promise<void> {
@@ -118,9 +147,12 @@ async function handleDelete(i: ChatInputCommandInteraction): Promise<void> {
   ).get(id, i.user.id) as unknown as DeadlineRow | undefined;
 
   if (!deadline) {
-    return void await i.reply({ content: `không tìm thấy deadline #${id}`, ephemeral: true });
+    await i.reply({ embeds: [errorEmbed(`Không tìm thấy deadline **#${id}**.`)], ephemeral: true });
+    return;
   }
 
   db.prepare('DELETE FROM deadlines WHERE id = ?').run(id);
-  await i.reply({ content: `xóa **${deadline.title}** rồi nha` });
+  await i.reply({
+    embeds: [successEmbed('🗑️ Đã xóa', `Deadline **#${id}: ${deadline.title}** đã được xóa.`)],
+  });
 }
