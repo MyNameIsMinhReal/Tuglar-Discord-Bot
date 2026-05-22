@@ -9,8 +9,11 @@ node_modules/
 # Build output
 dist/
 
-# Data files (local database)
-data/
+# Database files (runtime - not for version control)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/cards/
 
 # Logs
 *.log
