@@ -59,11 +59,18 @@ function calcReward(difficulty: string, streak: number): { total: number; bonus:
   return { total: base + bonus, bonus };
 }
 
-function getTodayChallenge(): Challenge {
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86_400_000
-  );
-  return challenges[dayOfYear % challenges.length];
+function seededIndex(seed: string, length: number): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = (h * 16777619) >>> 0;
+  }
+  return h % length;
+}
+
+function getTodayChallenge(userId: string): Challenge {
+  const today = getTodayStr();
+  return challenges[seededIndex(userId + today, challenges.length)];
 }
 
 function getTodayStr(): string {
@@ -83,7 +90,7 @@ function hasUsedGrace(userId: string, guildId: string): boolean {
 // ── Handlers ───────────────────────────────────────────────────────
 async function handleToday(i: ChatInputCommandInteraction): Promise<void> {
   const guildId = i.guildId;
-  const challenge = getTodayChallenge();
+  const challenge = getTodayChallenge(i.user.id);
   const today = getTodayStr();
 
   const log = db.prepare(
@@ -123,7 +130,7 @@ async function handleToday(i: ChatInputCommandInteraction): Promise<void> {
 async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
   const guildId = i.guildId;
   const today = getTodayStr();
-  const challenge = getTodayChallenge();
+  const challenge = getTodayChallenge(i.user.id);
 
   const existing = db.prepare(
     'SELECT * FROM challenge_log WHERE user_id = ? AND guild_id = ? AND challenge_date = ?'
