@@ -15,6 +15,15 @@ export async function execute(interaction: Interaction): Promise<void> {
 
   if (!interaction.isChatInputCommand()) return;
 
+  // Chặn lệnh chạy ngoài server (tránh crash do i.guildId! null)
+  if (!interaction.guildId) {
+    await interaction.reply({
+      content: '❌ Lệnh này chỉ dùng được trong server.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
   const command = interaction.client.commands.get(interaction.commandName);
 
   if (!command) {

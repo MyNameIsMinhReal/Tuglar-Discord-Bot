@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, GuildMember } from 'discord.js';
 import * as Eco from '../services/EconomyService';
 import { COLOR, errorEmbed } from '../utils/embeds';
 import { formatCoins } from '../utils/helpers';
@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { ShopItem } from '../types';
 import { db } from '../database';
+import { cfg } from '../config';
 
 let shopItems: ShopItem[] = [];
 try {
@@ -17,7 +18,19 @@ export const data = new SlashCommandBuilder()
   .setDescription('Hệ thống coins')
   .addSubcommand(sub => sub.setName('daily').setDescription('Nhận coins hàng ngày'))
   .addSubcommand(sub => sub.setName('balance').setDescription('Xem số dư'))
-  .addSubcommand(sub => sub.setName('leaderboard').setDescription('Bảng xếp hạng'))
+  .addSubcommand(sub => sub
+    .setName('leaderboard')
+    .setDescription('Bảng xếp hạng')
+    .addStringOption(o => o
+      .setName('type')
+      .setDescription('Loại xếp hạng')
+      .setRequired(false)
+      .addChoices(
+        { name: 'Giàu nhất (số dư hiện tại)', value: 'balance' },
+        { name: 'Kiếm nhiều nhất (tổng all-time)', value: 'earned' },
+      )
+    )
+  )
   .addSubcommand(sub => sub.setName('shop').setDescription('Xem shop'))
   .addSubcommand(sub => sub
     .setName('buy')
@@ -26,7 +39,7 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand(sub => sub
     .setName('pay')
-    .setDescription('Chuyển coins')
+    .setDescription('Chuyển coins (5% phí, tối đa 500 coins/ngày)')
     .addUserOption(o => o.setName('user').setDescription('Người nhận').setRequired(true))
     .addIntegerOption(o => o.setName('amount').setDescription('Số coins').setRequired(true).setMinValue(1))
   );
@@ -95,7 +108,11 @@ async function handleBalance(i: ChatInputCommandInteraction): Promise<void> {
 }
 
 async function handleLeaderboard(i: ChatInputCommandInteraction): Promise<void> {
-  const top = Eco.getLeaderboard(i.guildId!, 10);
+  const type = i.options.getString('type') ?? 'balance';
+  const top  = type === 'earned'
+    ? Eco.getEarnedLeaderboard(i.guildId!, 10)
+    : Eco.getLeaderboard(i.guildId!, 10);
+
   if (top.length === 0) {
     await i.reply({
       embeds: [new EmbedBuilder()
@@ -107,15 +124,23 @@ async function handleLeaderboard(i: ChatInputCommandInteraction): Promise<void> 
 
   const medals = ['🥇', '🥈', '🥉'];
   const lines = top.map((u, idx) => {
-    const me = u.user_id === i.user.id ? ' **← bạn**' : '';
-    return `${medals[idx] ?? `${idx + 1}.`} <@${u.user_id}> — **${formatCoins(u.balance)} coins**${me}`;
+    const me    = u.user_id === i.user.id ? ' **← bạn**' : '';
+    const value = type === 'earned'
+      ? `${formatCoins(u.total_earned)} earned`
+      : `${formatCoins(u.balance)} coins`;
+    return `${medals[idx] ?? `${idx + 1}.`} <@${u.user_id}> — **${value}**${me}`;
   });
+
+  const title = type === 'earned'
+    ? '📈 Top kiếm nhiều nhất (all-time)'
+    : '🏆 Top giàu nhất server';
 
   await i.reply({
     embeds: [new EmbedBuilder()
       .setColor(COLOR.ECONOMY)
-      .setTitle('🏆 Top giàu nhất server')
+      .setTitle(title)
       .setDescription(lines.join('\n'))
+      .setFooter({ text: type === 'balance' ? 'Tip: /eco leaderboard earned để xem tổng all-time' : 'Tip: /eco leaderboard balance để xem số dư' })
       .setTimestamp()],
   });
 }
@@ -140,7 +165,7 @@ async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
     .setColor(COLOR.INFO)
     .setTitle('🛒 Shop')
     .setDescription(`Ví của bạn: **${formatCoins(user.balance)} coins** | Dùng \`/eco buy <id>\` để mua`)
-    .setFooter({ text: 'Liên hệ admin sau khi mua để nhận quyền lợi' });
+    .setFooter({ text: 'Role màu & huy hiệu: liên hệ admin để nhận sau khi mua' });
 
   for (const [cat, items] of grouped) {
     const lines = items.map(it =>
@@ -180,14 +205,19 @@ async function handleBuy(i: ChatInputCommandInteraction): Promise<void> {
     'INSERT INTO shop_purchases (user_id, guild_id, item_id, item_name, price) VALUES (?, ?, ?, ?, ?)'
   ).run(i.user.id, i.guildId!, item.id, item.name, item.price);
 
+  const isCosmetic = item.category === 'cosmetic';
   await i.reply({
     embeds: [new EmbedBuilder()
       .setColor(COLOR.SUCCESS)
       .setTitle('🛍️ Mua thành công!')
       .setDescription(`${item.emoji} **${item.name}**\n${item.description}`)
-      .setFooter({ text: 'Liên hệ admin để nhận quyền lợi nha' })],
+      .setFooter({ text: isCosmetic ? 'Liên hệ admin để nhận role/huy hiệu nha' : 'Sử dụng ngay trong các lệnh liên quan!' })],
   });
 }
+
+const DAILY_TRANSFER_LIMIT = cfg.dailyTransferLimit;
+const TRANSFER_TAX_RATE    = cfg.payTaxPercent / 100;
+const MIN_MEMBER_DAYS      = cfg.minMemberDays;
 
 async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
   const target = i.options.getUser('user', true);
@@ -202,6 +232,36 @@ async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
     return;
   }
 
+  // Yêu cầu ở server ít nhất 3 ngày — chống alt-farm
+  const senderMember = i.member as GuildMember | null;
+  if (senderMember?.joinedAt) {
+    const daysSinceJoin = (Date.now() - senderMember.joinedAt.getTime()) / 86_400_000;
+    if (daysSinceJoin < MIN_MEMBER_DAYS) {
+      await i.reply({
+        embeds: [errorEmbed(`Bạn cần ở server ít nhất **${MIN_MEMBER_DAYS} ngày** mới được chuyển coins.`)],
+        ephemeral: true,
+      });
+      return;
+    }
+  }
+
+  // Giới hạn 500 coins/ngày
+  const todayTotal = Eco.getTodayTransferTotal(i.user.id, i.guildId!);
+  if (todayTotal + amount > DAILY_TRANSFER_LIMIT) {
+    const remaining = Math.max(0, DAILY_TRANSFER_LIMIT - todayTotal);
+    await i.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.WARNING)
+        .setTitle('⚠️ Vượt giới hạn chuyển tiền!')
+        .setDescription(`Giới hạn **${DAILY_TRANSFER_LIMIT} coins/ngày**.\nHôm nay đã chuyển **${formatCoins(todayTotal)} coins**, còn có thể chuyển **${formatCoins(remaining)} coins**.`)],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const tax      = Math.floor(amount * TRANSFER_TAX_RATE);
+  const received = amount - tax;
+
   const success = Eco.deductCoins(i.user.id, i.guildId!, amount);
   if (!success) {
     const user = Eco.getOrCreate(i.user.id, i.guildId!);
@@ -215,7 +275,10 @@ async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
     return;
   }
 
-  Eco.addCoins(target.id, i.guildId!, amount);
+  Eco.addCoins(target.id, i.guildId!, received);
+  Eco.logTransaction(i.user.id, i.guildId!, -amount, 'pay', `to:${target.id}`);
+  Eco.logTransaction(target.id, i.guildId!, received, 'receive', `from:${i.user.id}`);
+
   const remaining = Eco.getOrCreate(i.user.id, i.guildId!).balance;
 
   await i.reply({
@@ -224,7 +287,9 @@ async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
       .setTitle('💸 Chuyển tiền thành công!')
       .addFields(
         { name: '👤 Người nhận', value: `<@${target.id}>`, inline: true },
-        { name: '💰 Số tiền', value: `**${formatCoins(amount)} coins**`, inline: true },
+        { name: '💰 Gửi đi', value: `**${formatCoins(amount)} coins**`, inline: true },
+        { name: '💵 Người nhận được', value: `**${formatCoins(received)} coins**`, inline: true },
+        { name: '🏦 Phí giao dịch', value: `${formatCoins(tax)} coins (5%)`, inline: true },
         { name: '👛 Còn lại', value: `${formatCoins(remaining)} coins`, inline: true },
       )
       .setTimestamp()],

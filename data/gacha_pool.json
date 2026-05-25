@@ -4,7 +4,7 @@
       "id": "sung_jinwoo",
       "name": "Sung Jin-Woo",
       "rarity": "SSR",
-      "rate": 1.0,
+      "rate": 0.6,
       "emoji": "⚔️",
       "description": "Shadow Monarch - Người mạnh nhất thế giới",
       "image": "sung_jinwoo.png"
@@ -13,7 +13,7 @@
       "id": "cha_hae_in",
       "name": "Cha Hae-In",
       "rarity": "SSR",
-      "rate": 1.0,
+      "rate": 0.6,
       "emoji": "🗡️",
       "description": "Thợ săn S-rank của Hàn Quốc",
       "image": "cha_hae_in.png"
@@ -22,7 +22,7 @@
       "id": "beru",
       "name": "Beru",
       "rarity": "SSR",
-      "rate": 0.5,
+      "rate": 0.4,
       "emoji": "🪲",
       "description": "Vua Kiến - Shadow Soldier mạnh nhất",
       "image": "beru.png"
@@ -31,7 +31,7 @@
       "id": "igris",
       "name": "Igris",
       "rarity": "SSR",
-      "rate": 0.5,
+      "rate": 0.4,
       "emoji": "🩸",
       "description": "Kị sĩ máu đỏ - Vệ sĩ trung thành",
       "image": "igris.png"
@@ -40,7 +40,7 @@
       "id": "goto_ryuji",
       "name": "Goto Ryuji",
       "rarity": "SR",
-      "rate": 5.0,
+      "rate": 4.0,
       "emoji": "⚡",
       "description": "Thợ săn S-rank mạnh nhất Nhật Bản",
       "image": "goto_ryuji.png"
@@ -49,7 +49,7 @@
       "id": "thomas_andre",
       "name": "Thomas Andre",
       "rarity": "SR",
-      "rate": 5.0,
+      "rate": 4.0,
       "emoji": "🏋️",
       "description": "Thợ săn quốc gia của Mỹ",
       "image": "thomas_andre.png"
@@ -58,7 +58,7 @@
       "id": "liu_zhigang",
       "name": "Liu Zhigang",
       "rarity": "SR",
-      "rate": 4.0,
+      "rate": 3.5,
       "emoji": "🐉",
       "description": "Thợ săn S-rank Trung Quốc",
       "image": "liu_zhigang.png"
@@ -67,7 +67,7 @@
       "id": "yoo_jinho",
       "name": "Yoo Jin-Ho",
       "rarity": "R",
-      "rate": 15.0,
+      "rate": 14.0,
       "emoji": "💼",
       "description": "Phó đội trưởng đáng tin cậy",
       "image": "yoo_jinho.png"
@@ -76,7 +76,7 @@
       "id": "iron",
       "name": "Iron",
       "rarity": "R",
-      "rate": 15.0,
+      "rate": 14.0,
       "emoji": "🛡️",
       "description": "Shadow Soldier phòng thủ",
       "image": "iron.png"
@@ -94,7 +94,7 @@
       "id": "shadow_soldier_1",
       "name": "Lính Bóng Tối",
       "rarity": "N",
-      "rate": 20.0,
+      "rate": 23.25,
       "emoji": "👤",
       "description": "Binh lính thông thường của Shadow Army",
       "image": "shadow_soldier_1.png"
@@ -103,7 +103,7 @@
       "id": "mana_crystal",
       "name": "Tinh Thể Mana",
       "rarity": "N",
-      "rate": 20.0,
+      "rate": 22.25,
       "emoji": "💎",
       "description": "Vật phẩm hồi phục năng lượng",
       "image": "mana_crystal.png"

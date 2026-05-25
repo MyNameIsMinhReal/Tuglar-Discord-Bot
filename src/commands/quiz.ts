@@ -5,7 +5,10 @@ import {
 } from 'discord.js';
 import { generateQuiz } from '../services/AIService';
 import { QuizQuestion } from '../types';
-import { COLOR, errorEmbed, loadingEmbed } from '../utils/embeds';
+import { COLOR, errorEmbed } from '../utils/embeds';
+import { checkCooldown, formatCooldown } from '../utils/cooldown';
+
+const COOLDOWN_MS = 10 * 60 * 1000; // 10 phút/người
 
 export const data = new SlashCommandBuilder()
   .setName('quiz')
@@ -15,6 +18,17 @@ export const data = new SlashCommandBuilder()
     .setMinValue(1).setMaxValue(10));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  const left = checkCooldown(`quiz:${interaction.user.id}`, COOLDOWN_MS);
+  if (left > 0) {
+    await interaction.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.WARNING)
+        .setDescription(`⏳ Chờ **${formatCooldown(left)}** nữa mới dùng \`/quiz\` được nhé.`)],
+      ephemeral: true,
+    });
+    return;
+  }
+
   const topic = interaction.options.getString('topic', true);
   const count = interaction.options.getInteger('count') ?? 5;
 

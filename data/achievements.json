@@ -1,0 +1,114 @@
+[
+  {
+    "id": "first_step",
+    "name": "First Step",
+    "emoji": "🌱",
+    "description": "Hoàn thành thử thách đầu tiên",
+    "trigger": "challenge_total",
+    "threshold": 1
+  },
+  {
+    "id": "streak_3",
+    "name": "Getting Started",
+    "emoji": "✨",
+    "description": "Duy trì streak 3 ngày liên tiếp",
+    "trigger": "challenge_streak",
+    "threshold": 3
+  },
+  {
+    "id": "streak_7",
+    "name": "7-Day Streak",
+    "emoji": "🔥",
+    "description": "Duy trì streak 7 ngày liên tiếp",
+    "trigger": "challenge_streak",
+    "threshold": 7
+  },
+  {
+    "id": "streak_14",
+    "name": "Two Weeks Strong",
+    "emoji": "💪",
+    "description": "Duy trì streak 14 ngày liên tiếp",
+    "trigger": "challenge_streak",
+    "threshold": 14
+  },
+  {
+    "id": "streak_30",
+    "name": "30-Day Scholar",
+    "emoji": "📚",
+    "description": "Duy trì streak 30 ngày liên tiếp",
+    "trigger": "challenge_streak",
+    "threshold": 30
+  },
+  {
+    "id": "challenge_10",
+    "name": "Consistent",
+    "emoji": "📋",
+    "description": "Hoàn thành 10 thử thách",
+    "trigger": "challenge_total",
+    "threshold": 10
+  },
+  {
+    "id": "challenge_30",
+    "name": "The Grinder",
+    "emoji": "⚡",
+    "description": "Hoàn thành 30 thử thách",
+    "trigger": "challenge_total",
+    "threshold": 30
+  },
+  {
+    "id": "challenge_100",
+    "name": "Century",
+    "emoji": "💯",
+    "description": "Hoàn thành 100 thử thách",
+    "trigger": "challenge_total",
+    "threshold": 100
+  },
+  {
+    "id": "first_roll",
+    "name": "Gacha Newbie",
+    "emoji": "🎴",
+    "description": "Thực hiện lần roll đầu tiên",
+    "trigger": "gacha_rolls",
+    "threshold": 1
+  },
+  {
+    "id": "gacha_50",
+    "name": "Card Collector",
+    "emoji": "🗂️",
+    "description": "Thực hiện 50 lần roll gacha",
+    "trigger": "gacha_rolls",
+    "threshold": 50
+  },
+  {
+    "id": "gacha_100",
+    "name": "Gacha Veteran",
+    "emoji": "🎲",
+    "description": "Thực hiện 100 lần roll gacha",
+    "trigger": "gacha_rolls",
+    "threshold": 100
+  },
+  {
+    "id": "gacha_500",
+    "name": "Shadow Collector",
+    "emoji": "👑",
+    "description": "Thực hiện 500 lần roll gacha",
+    "trigger": "gacha_rolls",
+    "threshold": 500
+  },
+  {
+    "id": "first_ssr",
+    "name": "First SSR",
+    "emoji": "💎",
+    "description": "Nhận được nhân vật SSR đầu tiên",
+    "trigger": "gacha_ssr",
+    "threshold": 1
+  },
+  {
+    "id": "ssr_5",
+    "name": "SSR Hunter",
+    "emoji": "🌟",
+    "description": "Sở hữu 5 nhân vật SSR",
+    "trigger": "gacha_ssr",
+    "threshold": 5
+  }
+]

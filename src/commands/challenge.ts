@@ -11,7 +11,9 @@ import {
 } from 'discord.js';
 import { db } from '../database';
 import { Challenge, ChallengeLogRow, ChallengePendingRow } from '../types';
+import { cfg } from '../config';
 import * as Eco from '../services/EconomyService';
+import * as Achievement from '../services/AchievementService';
 import { COLOR } from '../utils/embeds';
 import { formatCoins } from '../utils/helpers';
 import path from 'path';
@@ -57,24 +59,28 @@ const DIFF_LABEL: Record<string, string> = {
   hard:   '🔴 Hard',
 };
 
-const BASE_REWARD: Record<string, number> = {
-  easy:   20,
-  medium: 35,
-  hard:   60,
-};
+const BASE_REWARD: Record<string, number> = cfg.challengeRewards;
 
-// Cumulative milestone bonuses — only highest matching tier applies
+// Milestone thresholds — chỉ dùng để hiển thị, bonus tính qua calcStreakBonus
 const MILESTONES = [
-  { streak: 30, bonus: 100, label: '👑 1 tháng' },
-  { streak: 14, bonus: 50,  label: '💎 2 tuần' },
-  { streak: 7,  bonus: 25,  label: '🔥 1 tuần' },
-  { streak: 3,  bonus: 10,  label: '✨ 3 ngày' },
+  { streak: 30, label: '👑 1 tháng' },
+  { streak: 14, label: '💎 2 tuần' },
+  { streak: 7,  label: '🔥 1 tuần' },
+  { streak: 3,  label: '✨ 3 ngày' },
 ];
 
+// % nhỏ theo streak, tối đa streakBonusMaxCoins — tránh lạm phát sau streak dài
+function calcStreakBonus(base: number, streak: number): number {
+  const tiers = Object.entries(cfg.streakBonusPercent)
+    .map(([k, v]) => ({ streak: Number(k), pct: v }))
+    .sort((a, b) => b.streak - a.streak);
+  const tier = tiers.find(t => streak >= t.streak);
+  return Math.min(Math.floor(base * (tier?.pct ?? 0)), cfg.streakBonusMaxCoins);
+}
+
 function calcReward(difficulty: string, streak: number): { total: number; bonus: number } {
-  const base = BASE_REWARD[difficulty] ?? 20;
-  const milestone = MILESTONES.find(m => streak >= m.streak);
-  const bonus = milestone?.bonus ?? 0;
+  const base = BASE_REWARD[difficulty] ?? cfg.challengeRewards.easy;
+  const bonus = calcStreakBonus(base, streak);
   return { total: base + bonus, bonus };
 }
 
@@ -93,7 +99,9 @@ function getTodayChallenge(userId: string): Challenge {
 }
 
 function getTodayStr(): string {
-  return new Date().toISOString().split('T')[0];
+  // UTC+7 — challenge ngày reset lúc 0 giờ giờ Việt Nam, không phải 7 giờ sáng UTC
+  const vn = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  return vn.toISOString().split('T')[0];
 }
 
 // Returns true if a grace was used in the last 7 days for this user
@@ -359,6 +367,15 @@ async function handlePending(i: ChatInputCommandInteraction): Promise<void> {
     }
 
     if (isApprove) {
+      // Update status trước (atomic check) — tránh 2 admin cùng approve cùng lúc
+      const updated = db.prepare(
+        "UPDATE challenge_pending SET status = 'approved', reviewed_by = ? WHERE id = ? AND status = 'pending'"
+      ).run(i.user.id, pendingId);
+
+      if (updated.changes === 0) {
+        return void await btn.update({ content: 'Submission này đã được xử lý rồi.', embeds: [], components: [] });
+      }
+
       const { newStreak, graceApplied } = computeNewStreak(p.user_id, p.guild_id, p.challenge_date);
       db.prepare(`
         INSERT INTO challenge_log (user_id, guild_id, challenge_date, challenge_text, completed, streak, used_grace)
@@ -368,8 +385,6 @@ async function handlePending(i: ChatInputCommandInteraction): Promise<void> {
 
       const { total, bonus } = calcReward(p.difficulty, newStreak);
       Eco.addCoins(p.user_id, p.guild_id, total);
-      db.prepare('UPDATE challenge_pending SET status = ?, reviewed_by = ? WHERE id = ?')
-        .run('approved', i.user.id, pendingId);
 
       let dm = `✅ Thử thách được duyệt rồi!\n**${p.challenge_text}**\n${DIFF_LABEL[p.difficulty]} → **+${formatCoins(total)} coins**`;
       if (bonus > 0) dm += ` (bao gồm +${bonus} streak bonus)`;
@@ -377,6 +392,16 @@ async function handlePending(i: ChatInputCommandInteraction): Promise<void> {
       const hit = MILESTONES.find(m => newStreak === m.streak);
       if (hit) dm += `\n${hit.label} **${newStreak} ngày** 🎉`;
       else if (newStreak > 1) dm += `\n🔥 Streak: **${newStreak} ngày**`;
+      const totalDone = (db.prepare(
+        'SELECT COUNT(*) as cnt FROM challenge_log WHERE user_id = ? AND guild_id = ? AND completed = 1'
+      ).get(p.user_id, p.guild_id) as { cnt: number }).cnt;
+      const newBadges = [
+        ...Achievement.checkAndGrant(p.user_id, p.guild_id, 'challenge_streak', newStreak),
+        ...Achievement.checkAndGrant(p.user_id, p.guild_id, 'challenge_total', totalDone),
+      ];
+      if (newBadges.length > 0) {
+        dm += `\n\n🏅 **Thành tích mới!**\n${newBadges.map(b => `${b.emoji} **${b.name}** — ${b.description}`).join('\n')}`;
+      }
       btn.client.users.fetch(p.user_id).then(u => u.send(dm)).catch(() => null);
     } else {
       db.prepare('UPDATE challenge_pending SET status = ?, reviewed_by = ? WHERE id = ?')
@@ -432,7 +457,16 @@ export async function handleApprove(i: ButtonInteraction): Promise<void> {
     .get(pendingId) as unknown as ChallengePendingRow | undefined;
 
   if (!pending) { await i.reply({ content: '❌ Không tìm thấy submission.', ephemeral: true }); return; }
-  if (pending.status !== 'pending') { await i.reply({ content: 'Đã xử lý rồi.', ephemeral: true }); return; }
+
+  // Atomic update — tránh race condition khi 2 admin duyệt cùng lúc
+  const updated = db.prepare(
+    "UPDATE challenge_pending SET status = 'approved', reviewed_by = ? WHERE id = ? AND status = 'pending'"
+  ).run(i.user.id, pendingId);
+
+  if (updated.changes === 0) {
+    await i.reply({ content: 'Submission này đã được xử lý rồi.', ephemeral: true });
+    return;
+  }
 
   const { newStreak, graceApplied } = computeNewStreak(pending.user_id, pending.guild_id, pending.challenge_date);
 
@@ -444,9 +478,6 @@ export async function handleApprove(i: ButtonInteraction): Promise<void> {
 
   const { total, bonus } = calcReward(pending.difficulty, newStreak);
   Eco.addCoins(pending.user_id, pending.guild_id, total);
-
-  db.prepare('UPDATE challenge_pending SET status = ?, reviewed_by = ? WHERE id = ?')
-    .run('approved', i.user.id, pendingId);
 
   const approvedEmbed = EmbedBuilder.from(i.message.embeds[0])
     .setColor(0x22c55e)
@@ -462,6 +493,16 @@ export async function handleApprove(i: ButtonInteraction): Promise<void> {
   if (hit) dm += `\n${hit.label} **${newStreak} ngày** 🎉`;
   else if (newStreak > 1) dm += `\n🔥 Streak: **${newStreak} ngày**`;
 
+  const totalDone = (db.prepare(
+    'SELECT COUNT(*) as cnt FROM challenge_log WHERE user_id = ? AND guild_id = ? AND completed = 1'
+  ).get(pending.user_id, pending.guild_id) as { cnt: number }).cnt;
+  const newBadges = [
+    ...Achievement.checkAndGrant(pending.user_id, pending.guild_id, 'challenge_streak', newStreak),
+    ...Achievement.checkAndGrant(pending.user_id, pending.guild_id, 'challenge_total', totalDone),
+  ];
+  if (newBadges.length > 0) {
+    dm += `\n\n🏅 **Thành tích mới!**\n${newBadges.map(b => `${b.emoji} **${b.name}** — ${b.description}`).join('\n')}`;
+  }
   await i.client.users.fetch(pending.user_id)
     .then(u => u.send(dm))
     .catch(() => null);

@@ -1,7 +1,7 @@
 import { db } from '../database';
 import { EconomyRow } from '../types';
+import { cfg } from '../config';
 
-// node:sqlite trả về rows dạng object giống better-sqlite3
 export function getOrCreate(userId: string, guildId: string): EconomyRow {
   let row = db.prepare(
     'SELECT * FROM economy WHERE user_id = ? AND guild_id = ?'
@@ -46,7 +46,8 @@ export function canClaimDaily(userId: string, guildId: string): { canClaim: bool
 }
 
 export function claimDaily(userId: string, guildId: string): number {
-  const reward = Math.floor(Math.random() * 51) + 50;
+  const range  = cfg.dailyMax - cfg.dailyMin;
+  const reward = Math.floor(Math.random() * (range + 1)) + cfg.dailyMin;
   const now = new Date().toISOString();
   db.prepare(`
     INSERT INTO economy (user_id, guild_id, balance, total_earned, last_daily)
@@ -56,6 +57,7 @@ export function claimDaily(userId: string, guildId: string): number {
       total_earned = total_earned + ?,
       last_daily = ?
   `).run(userId, guildId, reward, reward, now, reward, reward, now);
+  logTransaction(userId, guildId, reward, 'daily');
   return reward;
 }
 
@@ -63,4 +65,26 @@ export function getLeaderboard(guildId: string, limit = 10): EconomyRow[] {
   return db.prepare(
     'SELECT * FROM economy WHERE guild_id = ? ORDER BY balance DESC LIMIT ?'
   ).all(guildId, limit) as unknown as EconomyRow[];
+}
+
+export function getEarnedLeaderboard(guildId: string, limit = 10): EconomyRow[] {
+  return db.prepare(
+    'SELECT * FROM economy WHERE guild_id = ? ORDER BY total_earned DESC LIMIT ?'
+  ).all(guildId, limit) as unknown as EconomyRow[];
+}
+
+export function logTransaction(userId: string, guildId: string, amount: number, type: string, meta?: string): void {
+  db.prepare(
+    'INSERT INTO coin_transactions (user_id, guild_id, amount, type, meta) VALUES (?, ?, ?, ?, ?)'
+  ).run(userId, guildId, amount, type, meta ?? null);
+}
+
+// Tổng coins đã chuyển đi hôm nay (UTC date) cho giới hạn chống alt-farm
+export function getTodayTransferTotal(userId: string, guildId: string): number {
+  const today = new Date().toISOString().split('T')[0];
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(ABS(amount)), 0) as total FROM coin_transactions
+    WHERE user_id = ? AND guild_id = ? AND type = 'pay' AND date(created_at) = ?
+  `).get(userId, guildId, today) as { total: number };
+  return row?.total ?? 0;
 }

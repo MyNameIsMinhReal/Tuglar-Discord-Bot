@@ -1,0 +1,162 @@
+[
+  {
+    "id": "title_night_owl",
+    "name": "Night Owl",
+    "type": "title",
+    "rarity": "N",
+    "price": 800,
+    "description": "Dành cho người thích học khuya"
+  },
+  {
+    "id": "title_scholar",
+    "name": "Học Giả",
+    "type": "title",
+    "rarity": "R",
+    "price": 1000,
+    "description": "Danh hiệu dành cho người chăm chỉ"
+  },
+  {
+    "id": "title_grinder",
+    "name": "The Grinder",
+    "type": "title",
+    "rarity": "R",
+    "price": 1500,
+    "description": "Không ngủ, không nghỉ, chỉ grind"
+  },
+  {
+    "id": "title_shadow_student",
+    "name": "Shadow Student",
+    "type": "title",
+    "rarity": "SR",
+    "price": 3000,
+    "description": "Học trong bóng tối, toả sáng trong kỳ thi"
+  },
+  {
+    "id": "title_monarch",
+    "name": "Study Monarch",
+    "type": "title",
+    "rarity": "SSR",
+    "price": 10000,
+    "description": "Vua của mọi buổi học — danh hiệu tối thượng"
+  },
+  {
+    "id": "accent_blue",
+    "name": "Xanh Dương",
+    "type": "accent",
+    "rarity": "N",
+    "price": 300,
+    "description": "Màu nhấn xanh dương trong profile"
+  },
+  {
+    "id": "accent_red",
+    "name": "Đỏ",
+    "type": "accent",
+    "rarity": "N",
+    "price": 300,
+    "description": "Màu nhấn đỏ trong profile"
+  },
+  {
+    "id": "accent_purple",
+    "name": "Tím",
+    "type": "accent",
+    "rarity": "N",
+    "price": 400,
+    "description": "Màu nhấn tím trong profile"
+  },
+  {
+    "id": "accent_neon",
+    "name": "Neon Green",
+    "type": "accent",
+    "rarity": "R",
+    "price": 600,
+    "description": "Màu xanh neon nổi bật"
+  },
+  {
+    "id": "accent_gold",
+    "name": "Vàng Gold",
+    "type": "accent",
+    "rarity": "SR",
+    "price": 1200,
+    "description": "Màu vàng sang chảnh"
+  },
+  {
+    "id": "bg_study_room",
+    "name": "Study Room",
+    "type": "background",
+    "rarity": "R",
+    "price": 3000,
+    "description": "Phòng học ấm cúng với đèn vàng"
+  },
+  {
+    "id": "bg_forest",
+    "name": "Forest",
+    "type": "background",
+    "rarity": "R",
+    "price": 4000,
+    "description": "Rừng xanh yên tĩnh"
+  },
+  {
+    "id": "bg_cyber",
+    "name": "Cyber City",
+    "type": "background",
+    "rarity": "SR",
+    "price": 6000,
+    "description": "Thành phố điện tử về đêm"
+  },
+  {
+    "id": "bg_galaxy",
+    "name": "Galaxy",
+    "type": "background",
+    "rarity": "SR",
+    "price": 8000,
+    "description": "Dải ngân hà rực rỡ"
+  },
+  {
+    "id": "bg_shadow_realm",
+    "name": "Shadow Realm",
+    "type": "background",
+    "rarity": "SSR",
+    "price": 15000,
+    "description": "Vương quốc bóng tối — background độc nhất vô nhị"
+  },
+  {
+    "id": "frame_silver",
+    "name": "Silver Frame",
+    "type": "frame",
+    "rarity": "R",
+    "price": 3000,
+    "description": "Viền bạc tinh tế"
+  },
+  {
+    "id": "frame_dark",
+    "name": "Dark Frame",
+    "type": "frame",
+    "rarity": "R",
+    "price": 4000,
+    "description": "Viền tối huyền bí"
+  },
+  {
+    "id": "frame_neon",
+    "name": "Neon Frame",
+    "type": "frame",
+    "rarity": "SR",
+    "price": 6000,
+    "description": "Viền neon phát sáng"
+  },
+  {
+    "id": "frame_gold",
+    "name": "Golden Frame",
+    "type": "frame",
+    "rarity": "SR",
+    "price": 8000,
+    "description": "Viền vàng sang trọng"
+  },
+  {
+    "id": "frame_monarch",
+    "name": "Monarch Frame",
+    "type": "frame",
+    "rarity": "SSR",
+    "price": 20000,
+    "description": "Viền độc quyền của Study Monarch"
+  }
+]

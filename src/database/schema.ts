@@ -106,10 +106,71 @@ export function initDatabase(): void {
       disabled_at  TEXT DEFAULT (datetime('now')),
       PRIMARY KEY (command_name, guild_id)
     );
+
+    CREATE TABLE IF NOT EXISTS coin_transactions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    TEXT NOT NULL,
+      guild_id   TEXT NOT NULL,
+      amount     INTEGER NOT NULL,
+      type       TEXT NOT NULL,
+      meta       TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS gacha_pity (
+      user_id          TEXT NOT NULL,
+      guild_id         TEXT NOT NULL,
+      rolls_since_ssr  INTEGER DEFAULT 0,
+      rolls_since_sr   INTEGER DEFAULT 0,
+      PRIMARY KEY (user_id, guild_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS seasons (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id   TEXT NOT NULL,
+      season_num INTEGER NOT NULL,
+      started_at TEXT DEFAULT (datetime('now')),
+      ended_at   TEXT,
+      reset_by   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS user_cosmetics (
+      user_id      TEXT NOT NULL,
+      guild_id     TEXT NOT NULL,
+      cosmetic_id  TEXT NOT NULL,
+      unlocked_at  TEXT DEFAULT (datetime('now')),
+      expires_at   TEXT,
+      PRIMARY KEY (user_id, guild_id, cosmetic_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS user_profile_settings (
+      user_id       TEXT NOT NULL,
+      guild_id      TEXT NOT NULL,
+      background_id TEXT,
+      frame_id      TEXT,
+      title_id      TEXT,
+      accent_id     TEXT,
+      sticker_id    TEXT,
+      name_style_id TEXT,
+      badge_slot_1  TEXT,
+      badge_slot_2  TEXT,
+      badge_slot_3  TEXT,
+      updated_at    TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, guild_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS user_achievements (
+      user_id    TEXT NOT NULL,
+      guild_id   TEXT NOT NULL,
+      badge_id   TEXT NOT NULL,
+      earned_at  TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, guild_id, badge_id)
+    );
   `);
 
   // Migrations for existing tables
   try { db.exec('ALTER TABLE challenge_log ADD COLUMN used_grace INTEGER DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE economy ADD COLUMN prestige_points INTEGER DEFAULT 0'); } catch {}
 
   console.log('✅ Database schema initialized');
 }

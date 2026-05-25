@@ -201,10 +201,11 @@ async function handleGuessStart(i: ChatInputCommandInteraction): Promise<void> {
 
   collector.on('end', (_, reason: string) => {
     if (reason === 'time') {
+      const game = guessGames.get(key);
       guessGames.delete(key);
       i.followUp({
         embeds: [new EmbedBuilder().setColor(COLOR.DANGER)
-          .setDescription(`⏰ Game kết thúc do hết giờ. Con số là **${guessGames.get(key)?.target ?? '???'}**`)],
+          .setDescription(`⏰ Game kết thúc do hết giờ. Con số là **${game?.target ?? '???'}**`)],
       }).catch(() => {});
     }
   });

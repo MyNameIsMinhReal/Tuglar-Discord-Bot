@@ -3,7 +3,7 @@
     "id": "quiz_hint",
     "name": "Gói Gợi ý Quiz",
     "description": "5 lần gợi ý đáp án khi chơi /quiz",
-    "price": 200,
+    "price": 150,
     "emoji": "💡",
     "category": "study"
   },
@@ -11,47 +11,15 @@
     "id": "streak_shield",
     "name": "Khiên Bảo Vệ Streak",
     "description": "Bảo vệ streak thách thức học tập khỏi bị reset 1 lần",
-    "price": 300,
+    "price": 250,
     "emoji": "🛡️",
     "category": "study"
-  },
-  {
-    "id": "double_daily",
-    "name": "Thẻ x2 Daily",
-    "description": "Nhân đôi coins nhận được từ /daily lần tiếp theo",
-    "price": 350,
-    "emoji": "💳",
-    "category": "study"
-  },
-  {
-    "id": "extra_roll",
-    "name": "Roll Gacha Miễn Phí",
-    "description": "1 lần roll gacha không tốn coins",
-    "price": 350,
-    "emoji": "🎰",
-    "category": "gacha"
-  },
-  {
-    "id": "lucky_charm",
-    "name": "Bùa May Mắn",
-    "description": "Tăng 15% cơ hội nhận SR/SSR trong lần gacha tiếp theo",
-    "price": 600,
-    "emoji": "🍀",
-    "category": "gacha"
-  },
-  {
-    "id": "mega_lucky",
-    "name": "Bùa Đại Cát",
-    "description": "Đảm bảo nhận ít nhất SR trong lần gacha tiếp theo",
-    "price": 1200,
-    "emoji": "🌟",
-    "category": "gacha"
   },
   {
     "id": "color_blue",
     "name": "Màu tên Xanh Dương",
     "description": "Thêm role màu xanh dương cho tên trên server",
-    "price": 450,
+    "price": 1500,
     "emoji": "🔵",
     "category": "cosmetic"
   },
@@ -59,7 +27,7 @@
     "id": "color_red",
     "name": "Màu tên Đỏ",
     "description": "Thêm role màu đỏ cho tên trên server",
-    "price": 450,
+    "price": 1500,
     "emoji": "🔴",
     "category": "cosmetic"
   },
@@ -67,7 +35,7 @@
     "id": "color_purple",
     "name": "Màu tên Tím",
     "description": "Thêm role màu tím cho tên trên server",
-    "price": 600,
+    "price": 2000,
     "emoji": "🟣",
     "category": "cosmetic"
   },
@@ -75,7 +43,7 @@
     "id": "color_gold",
     "name": "Màu tên Vàng Gold",
     "description": "Thêm role màu vàng gold sang chảnh cho tên trên server",
-    "price": 1000,
+    "price": 3000,
     "emoji": "🟡",
     "category": "cosmetic"
   },
@@ -83,7 +51,7 @@
     "id": "badge_vip",
     "name": "Huy hiệu VIP",
     "description": "Hiển thị ✨ VIP trước tên trong bảng xếp hạng",
-    "price": 1500,
+    "price": 8000,
     "emoji": "✨",
     "category": "cosmetic"
   },
@@ -91,7 +59,7 @@
     "id": "badge_scholar",
     "name": "Danh hiệu Học Giả",
     "description": "Hiển thị 🎓 Học Giả — danh hiệu cao quý dành cho người siêng năng",
-    "price": 2500,
+    "price": 12000,
     "emoji": "🎓",
     "category": "cosmetic"
   }
