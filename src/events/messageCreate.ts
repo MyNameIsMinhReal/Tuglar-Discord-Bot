@@ -109,8 +109,8 @@ async function checkSpam(message: Message<true>, canDelete: boolean | undefined)
   const embed = new EmbedBuilder()
     .setColor(COLOR.WARNING)
     .setDescription(
-      `⚠️ <@${message.author.id}> Bạn đang gửi tin nhắn quá nhanh!\n` +
-      `Vui lòng chậm lại. Số lần cảnh báo: **${warnCount}**`
+      `⚠️ <@${message.author.id}> spam thế hả? Nhắn chậm lại tí đi.\n` +
+      `Cảnh báo lần **${warnCount}**`
     );
 
   try {

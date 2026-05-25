@@ -40,6 +40,10 @@ export const data = new SlashCommandBuilder()
   .addSubcommand(sub => sub
     .setName('guess_stop')
     .setDescription('⛔ Dừng game đoán số đang chạy')
+  )
+  .addSubcommand(sub => sub
+    .setName('wyr')
+    .setDescription('🤔 Would You Rather — ai cũng vote được!')
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -51,6 +55,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     case 'flip':       return handleFlip(interaction);
     case '8ball':      return handle8Ball(interaction);
     case 'guess_stop': return handleGuessStop(interaction);
+    case 'wyr':        return handleWYR(interaction);
   }
 }
 
@@ -225,11 +230,11 @@ async function handleFlip(i: ChatInputCommandInteraction): Promise<void> {
 
 // ── Magic 8 Ball ───────────────────────────────────────────────────
 const BALL_ANSWERS = [
-  'Chắc chắn rồi! ✅', 'Không hề nghi ngờ 👍', 'Nhất định như vậy 💯',
-  'Theo dấu hiệu thì có 🌟', 'Triển vọng tốt 👀',
-  'Trả lời không rõ, thử lại 🤔', 'Hỏi lại sau 🔄', 'Tốt nhất không nên đếm vào điều đó 😅',
-  'Không trông chờ điều đó 🚫', 'Câu trả lời là Không ❌',
-  'Nghi ngờ điều đó 😒', 'Triển vọng không tốt ⚠️',
+  'Cái này thì chắc rồi 😌', 'Ừ đúng rồi đó 👍', '100% luôn 💯',
+  'Trông có vẻ được nha 🌟', 'Khả năng cao lắm 👀',
+  'Hỏi lại câu đó đi, tao không chắc 🤔', 'Hỏi sau đi, giờ tao bận 🔄', 'Đừng trông mong quá nha 😅',
+  'Khó lắm đó bạn ơi 🚫', 'Không, thẳng thắn mà nói là không ❌',
+  'Tao ngờ lắm 😒', 'Nhìn không ổn lắm ⚠️', 'Xác suất tào lao lắm 💀',
 ];
 
 async function handle8Ball(i: ChatInputCommandInteraction): Promise<void> {
@@ -244,5 +249,112 @@ async function handle8Ball(i: ChatInputCommandInteraction): Promise<void> {
         { name: '❓ Câu hỏi', value: question },
         { name: '🎱 Trả lời', value: `**${answer}**` },
       )],
+  });
+}
+
+// ── Would You Rather ───────────────────────────────────────────────
+const WYR_QUESTIONS: [string, string][] = [
+  // Học tập
+  ['Thi trượt 1 môn nhưng không ai biết', 'Đậu hết nhưng cả trường đồn mày quay cóp'],
+  ['Nhớ vanh vách mọi thứ nhưng không hiểu gì', 'Hiểu rất sâu nhưng quên sạch sau 1 ngày'],
+  ['Học nhóm với toàn người không làm gì', 'Tự học 1 mình 8 tiếng liên tục'],
+  ['Thầy dạy hay nhất thế giới nhưng ngủ gật cả buổi', 'Thầy cực vui nhộn nhưng học xong không biết gì'],
+  ['Điểm toàn 9-10 nhưng không có bạn thân', 'Bạn bè đầy nhưng điểm toàn 5-6'],
+  ['Luôn hiểu bài ngay lần đầu nhưng quên sau 1 tuần', 'Học chậm nhưng nhớ mãi không quên'],
+  ['Học online mãi mãi', 'Học trên lớp mãi mãi, không có nghỉ hè'],
+  ['Ngủ trong lớp mà không ai biết', 'Chú ý nghe hết nhưng về nhà không hiểu gì'],
+  ['Thi vấn đáp trực tiếp với hội đồng', 'Thi viết 4 tiếng không được ra ngoài'],
+  ['Không bao giờ trễ deadline nhưng chất lượng chỉ 6/10', 'Bài làm hoàn hảo nhưng luôn nộp muộn'],
+
+  // Tech / lập trình
+  ['Code không bao giờ có bug nhưng không hiểu tại sao nó chạy', 'Hiểu code từng dòng nhưng bug liên tục'],
+  ['Làm ở Google lương trung bình', 'Lương gấp đôi nhưng ở startup không ai nghe tên'],
+  ['Không bao giờ dùng được Stack Overflow', 'Không bao giờ dùng được Google'],
+  ['Debug 8 tiếng tìm ra đúng bug', 'Fix tạm 10 phút — prod vẫn sống, bug vẫn còn'],
+  ['Toàn bộ code của mình là open source và nổi tiếng', 'Code xịn nhưng không ai biết, không bao giờ public'],
+  ['Không bao giờ dùng được AI để code', 'AI code thay hết nhưng mình không hiểu gì nó viết'],
+  ['Senior 10 năm kinh nghiệm nhưng lương junior', 'Junior mới ra trường nhưng lương senior vì "good at interview"'],
+
+  // Cuộc sống
+  ['Biết 10 thứ tiếng nhưng không có ai để nói chuyện', 'Chỉ biết tiếng Việt nhưng có bạn thân khắp thế giới'],
+  ['Biết trước tương lai nhưng không thay đổi được gì', 'Thay đổi được tương lai nhưng không biết trước gì sẽ xảy ra'],
+  ['Giàu nhưng không ai biết mình giàu', 'Nổi tiếng nhưng không có tiền'],
+  ['Sống không có internet nhưng có sách đọc vô hạn', 'Có internet nhưng chỉ xem được YouTube Shorts'],
+  ['Ăn 1 món yêu thích mãi mãi, không ăn được gì khác', 'Ăn được mọi thứ nhưng món yêu thích biến mất vĩnh viễn'],
+  ['Không bao giờ bị muỗi đốt', 'Không bao giờ bị kẹt xe'],
+  ['Luôn thức dậy tỉnh táo, không cần báo thức', 'Ngủ ngon ngay khi đặt đầu xuống gối, dù đang ở đâu'],
+  ['Được 10 triệu nhưng phải tiêu hết trong 24 tiếng', 'Được 500k mỗi ngày mãi mãi'],
+  ['Không bao giờ bị ai hiểu lầm', 'Không bao giờ bị ai nói xấu sau lưng'],
+  ['Đi du lịch 30 nước nhưng đi 1 mình', 'Đi 3 nước nhưng cùng nhóm bạn thân nhất'],
+  ['Làm nghề yêu thích nhưng lương thấp', 'Làm nghề nhàm chán nhưng lương cao, về là xả được'],
+
+  // Vui / absurd
+  ['Có siêu năng lực đọc suy nghĩ người khác', 'Bay được nhưng chỉ cao 50cm so với mặt đất'],
+  ['Mặt đỏ hết cỡ mỗi khi nói dối', 'Hắt xì to như sấm mỗi khi nghe tên crush'],
+  ['Mọi câu mình nói đều thành sự thật — nhưng chỉ 1 câu/ngày', 'Nói được bất kỳ điều gì nhưng không ai tin'],
+  ['Không bao giờ bị mưa ướt dù đứng giữa trời mưa', 'Không bao giờ bị nóng dù đứng giữa trưa hè'],
+  ['Gặp 1 nhân vật trong anime/game yêu thích ngoài đời thật', 'Gặp 1 người nổi tiếng trong thực tế mà mình idol'],
+  ['Admin 1 server 10k người toàn drama', 'Member bình thường trong server yên bình không có gì xảy ra'],
+  ['Có custom role cực đẹp nhưng không chat được', 'Không có role gì nhưng được nói tự do'],
+];
+
+const WYR_DURATION_MS = 60_000;
+
+async function handleWYR(i: ChatInputCommandInteraction): Promise<void> {
+  const [optA, optB] = WYR_QUESTIONS[randInt(0, WYR_QUESTIONS.length - 1)];
+  const votes = new Map<string, 'A' | 'B'>();
+
+  const buildEmbed = (open: boolean) => {
+    const a = [...votes.values()].filter(v => v === 'A').length;
+    const b = [...votes.values()].filter(v => v === 'B').length;
+    const total = a + b;
+    const pctA = total > 0 ? Math.round((a / total) * 100) : 50;
+    const pctB = total > 0 ? Math.round((b / total) * 100) : 50;
+    const barA = '█'.repeat(Math.round(pctA / 10)) + '░'.repeat(10 - Math.round(pctA / 10));
+    const barB = '█'.repeat(Math.round(pctB / 10)) + '░'.repeat(10 - Math.round(pctB / 10));
+
+    return new EmbedBuilder()
+      .setColor(COLOR.GAME)
+      .setTitle('🤔 Would You Rather...')
+      .addFields(
+        { name: `🅰️ ${optA}`, value: `${barA} **${pctA}%** (${a} vote)`, inline: false },
+        { name: `🅱️ ${optB}`, value: `${barB} **${pctB}%** (${b} vote)`, inline: false },
+      )
+      .setFooter({ text: open ? `Bình chọn trong ${WYR_DURATION_MS / 1000}s · ${total} người đã vote` : `Kết thúc · ${total} người đã vote` })
+      .setTimestamp();
+  };
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId('wyr_a').setLabel('🅰️ Cái này').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('wyr_b').setLabel('🅱️ Cái kia').setStyle(ButtonStyle.Secondary),
+  );
+  const rowDisabled = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId('wyr_a').setLabel('🅰️ Cái này').setStyle(ButtonStyle.Primary).setDisabled(true),
+    new ButtonBuilder().setCustomId('wyr_b').setLabel('🅱️ Cái kia').setStyle(ButtonStyle.Secondary).setDisabled(true),
+  );
+
+  await i.reply({ embeds: [buildEmbed(true)], components: [row] });
+  const msg = await i.fetchReply();
+
+  const collector = msg.createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    time: WYR_DURATION_MS,
+  });
+
+  collector.on('collect', async btn => {
+    const choice = btn.customId === 'wyr_a' ? 'A' : 'B';
+    const prev = votes.get(btn.user.id);
+
+    if (prev === choice) {
+      await btn.reply({ content: 'Bạn đã chọn cái này rồi!', ephemeral: true });
+      return;
+    }
+
+    votes.set(btn.user.id, choice);
+    await btn.update({ embeds: [buildEmbed(true)], components: [row] });
+  });
+
+  collector.on('end', async () => {
+    await i.editReply({ embeds: [buildEmbed(false)], components: [rowDisabled] }).catch(() => {});
   });
 }

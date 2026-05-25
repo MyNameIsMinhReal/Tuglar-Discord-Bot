@@ -1,6 +1,7 @@
-import { Interaction, EmbedBuilder, MessageFlags } from 'discord.js';
+import { Interaction, EmbedBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { COLOR } from '../utils/embeds';
 import { handleApprove, handleDeny } from '../commands/challenge';
+import { db } from '../database';
 
 export const name = 'interactionCreate';
 export const once = false;
@@ -24,6 +25,24 @@ export async function execute(interaction: Interaction): Promise<void> {
       flags: MessageFlags.Ephemeral,
     });
     return;
+  }
+
+  // Check if command is disabled for this guild (admins bypass)
+  const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
+  if (!isAdmin && interaction.guildId) {
+    const disabled = db.prepare(
+      'SELECT 1 FROM disabled_commands WHERE command_name = ? AND guild_id = ?'
+    ).get(interaction.commandName, interaction.guildId);
+
+    if (disabled) {
+      await interaction.reply({
+        embeds: [new EmbedBuilder()
+          .setColor(COLOR.WARNING)
+          .setDescription(`🔒 Lệnh \`/${interaction.commandName}\` chưa được mở trên server này.`)],
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
   }
 
   try {

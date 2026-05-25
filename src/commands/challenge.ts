@@ -6,6 +6,8 @@ import {
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
+  ComponentType,
+  Message,
 } from 'discord.js';
 import { db } from '../database';
 import { Challenge, ChallengeLogRow, ChallengePendingRow } from '../types';
@@ -34,7 +36,8 @@ export const data = new SlashCommandBuilder()
       .setDescription('Ảnh chứng minh đã hoàn thành')
       .setRequired(true)))
   .addSubcommand(sub => sub.setName('streak').setDescription('Xem streak và thống kê của bạn'))
-  .addSubcommand(sub => sub.setName('leaderboard').setDescription('Ai streak cao nhất server'));
+  .addSubcommand(sub => sub.setName('leaderboard').setDescription('Ai streak cao nhất server'))
+  .addSubcommand(sub => sub.setName('pending').setDescription('[Admin] Xem và duyệt ảnh submissions đang chờ'));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const sub = interaction.options.getSubcommand();
@@ -43,6 +46,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     case 'done':        return handleDone(interaction);
     case 'streak':      return handleStreak(interaction);
     case 'leaderboard': return handleLeaderboard(interaction);
+    case 'pending':     return handlePending(interaction);
   }
 }
 
@@ -182,12 +186,12 @@ async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
 
   const proof = i.options.getAttachment('proof', true);
   if (!proof.contentType?.startsWith('image/')) {
-    return void await i.reply({ content: '❌ Vui lòng đính kèm ảnh (PNG, JPG, GIF...).', ephemeral: true });
+    return void await i.reply({ content: '❌ File này không phải ảnh nha, gửi PNG/JPG/GIF thôi.', ephemeral: true });
   }
 
   const reviewChannelId = process.env.CHALLENGE_REVIEW_CHANNEL_ID;
   if (!reviewChannelId) {
-    return void await i.reply({ content: '❌ Bot chưa được cấu hình kênh duyệt. Liên hệ admin.', ephemeral: true });
+    return void await i.reply({ content: '❌ Admin chưa setup kênh duyệt, nhắn admin xem lại config nha.', ephemeral: true });
   }
 
   db.prepare(`
@@ -236,7 +240,7 @@ async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
 
   db.prepare('UPDATE challenge_pending SET message_id = ? WHERE id = ?').run(reviewMsg.id, row.id);
 
-  await i.reply({ content: '📸 Đã gửi ảnh! Admin sẽ duyệt sớm nhé.', ephemeral: true });
+  await i.reply({ content: '📸 Gửi rồi! Chờ admin duyệt tí nhé.', ephemeral: true });
 }
 
 // ── Streak helper (used by handleApprove) ──────────────────────────
@@ -270,6 +274,151 @@ function computeNewStreak(
   }
 
   return { newStreak: 1, graceApplied: false };
+}
+
+// ── Admin Pending Review ───────────────────────────────────────────
+async function handlePending(i: ChatInputCommandInteraction): Promise<void> {
+  if (!i.memberPermissions?.has('ManageGuild')) {
+    return void await i.reply({ content: '❌ Lệnh này chỉ dành cho admin.', ephemeral: true });
+  }
+
+  const rows = db.prepare(`
+    SELECT * FROM challenge_pending
+    WHERE guild_id = ? AND status = 'pending'
+    ORDER BY created_at ASC
+  `).all(i.guildId) as unknown as ChallengePendingRow[];
+
+  if (rows.length === 0) {
+    await i.reply({
+      embeds: [new EmbedBuilder().setColor(COLOR.SUCCESS).setDescription('Queue trống, không có gì cần duyệt 🎉')],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  let page = 0;
+
+  const buildEmbed = (idx: number) => {
+    const p = rows[idx];
+    return new EmbedBuilder()
+      .setColor(0xf59e0b)
+      .setTitle(`📋 Submissions chờ duyệt — ${idx + 1}/${rows.length}`)
+      .addFields(
+        { name: '👤 Người nộp', value: `<@${p.user_id}>`, inline: true },
+        { name: '📅 Ngày', value: p.challenge_date, inline: true },
+        { name: '🎯 Độ khó', value: DIFF_LABEL[p.difficulty] ?? p.difficulty, inline: true },
+        { name: '📝 Thử thách', value: p.challenge_text, inline: false },
+      )
+      .setImage(p.image_url)
+      .setFooter({ text: `ID: ${p.id} · Nộp lúc ${new Date(p.created_at).toLocaleString('vi-VN')}` })
+      .setTimestamp();
+  };
+
+  const buildRows = (idx: number) => {
+    const p = rows[idx];
+    const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId(`ch_rev_approve:${p.id}`).setLabel('✅ Duyệt').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`ch_rev_deny:${p.id}`).setLabel('❌ Từ chối').setStyle(ButtonStyle.Danger),
+    );
+    if (rows.length <= 1) return [actionRow];
+    const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId('rev_prev').setLabel('◀ Trước').setStyle(ButtonStyle.Secondary).setDisabled(idx === 0),
+      new ButtonBuilder().setCustomId('rev_next').setLabel('Sau ▶').setStyle(ButtonStyle.Secondary).setDisabled(idx === rows.length - 1),
+    );
+    return [actionRow, navRow];
+  };
+
+  await i.reply({ embeds: [buildEmbed(page)], components: buildRows(page), ephemeral: true });
+
+  const msg = await i.fetchReply();
+  const collector = (msg as Message).createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    filter: b => b.user.id === i.user.id,
+    time: 300_000,
+  });
+
+  collector.on('collect', async btn => {
+    // ── Navigation ──────────────────────────────────────────────────
+    if (btn.customId === 'rev_prev') {
+      page = Math.max(0, page - 1);
+      return void await btn.update({ embeds: [buildEmbed(page)], components: buildRows(page) });
+    }
+    if (btn.customId === 'rev_next') {
+      page = Math.min(rows.length - 1, page + 1);
+      return void await btn.update({ embeds: [buildEmbed(page)], components: buildRows(page) });
+    }
+
+    // ── Approve / Deny ──────────────────────────────────────────────
+    const isApprove = btn.customId.startsWith('ch_rev_approve:');
+    const pendingId = Number.parseInt(btn.customId.split(':')[1]);
+    const p = db.prepare('SELECT * FROM challenge_pending WHERE id = ?')
+      .get(pendingId) as unknown as ChallengePendingRow | undefined;
+
+    if (!p || p.status !== 'pending') {
+      return void await btn.update({ content: 'Submission này đã được xử lý rồi.', embeds: [], components: [] });
+    }
+
+    if (isApprove) {
+      const { newStreak, graceApplied } = computeNewStreak(p.user_id, p.guild_id, p.challenge_date);
+      db.prepare(`
+        INSERT INTO challenge_log (user_id, guild_id, challenge_date, challenge_text, completed, streak, used_grace)
+        VALUES (?, ?, ?, ?, 1, ?, 0)
+        ON CONFLICT(user_id, guild_id, challenge_date) DO UPDATE SET completed = 1, streak = ?, used_grace = 0
+      `).run(p.user_id, p.guild_id, p.challenge_date, p.challenge_text, newStreak, newStreak);
+
+      const { total, bonus } = calcReward(p.difficulty, newStreak);
+      Eco.addCoins(p.user_id, p.guild_id, total);
+      db.prepare('UPDATE challenge_pending SET status = ?, reviewed_by = ? WHERE id = ?')
+        .run('approved', i.user.id, pendingId);
+
+      let dm = `✅ Thử thách được duyệt rồi!\n**${p.challenge_text}**\n${DIFF_LABEL[p.difficulty]} → **+${formatCoins(total)} coins**`;
+      if (bonus > 0) dm += ` (bao gồm +${bonus} streak bonus)`;
+      if (graceApplied) dm += `\n🛡️ Grace tự động cho ngày hôm qua — streak được bảo toàn!`;
+      const hit = MILESTONES.find(m => newStreak === m.streak);
+      if (hit) dm += `\n${hit.label} **${newStreak} ngày** 🎉`;
+      else if (newStreak > 1) dm += `\n🔥 Streak: **${newStreak} ngày**`;
+      btn.client.users.fetch(p.user_id).then(u => u.send(dm)).catch(() => null);
+    } else {
+      db.prepare('UPDATE challenge_pending SET status = ?, reviewed_by = ? WHERE id = ?')
+        .run('denied', i.user.id, pendingId);
+      btn.client.users.fetch(p.user_id)
+        .then(u => u.send(`❌ Ảnh ngày **${p.challenge_date}** bị từ chối rồi.\nNộp lại ảnh khác bằng \`/challenge done\` nha.`))
+        .catch(() => null);
+    }
+
+    // Cập nhật message trong review channel nếu có
+    if (p.message_id) {
+      const reviewChannelId = process.env.CHALLENGE_REVIEW_CHANNEL_ID;
+      if (reviewChannelId) {
+        try {
+          const ch = await btn.client.channels.fetch(reviewChannelId);
+          if (ch?.isTextBased()) {
+            const reviewMsg = await (ch as any).messages.fetch(p.message_id);
+            const updated = EmbedBuilder.from(reviewMsg.embeds[0])
+              .setColor(isApprove ? 0x22c55e : 0xef4444)
+              .setFooter({ text: `${isApprove ? '✅ Duyệt' : '❌ Từ chối'} bởi ${btn.user.tag}` });
+            await reviewMsg.edit({ embeds: [updated], components: [] });
+          }
+        } catch {}
+      }
+    }
+
+    // Xóa khỏi mảng và chuyển sang submission tiếp theo
+    rows.splice(page, 1);
+    if (rows.length === 0) {
+      collector.stop();
+      return void await btn.update({
+        embeds: [new EmbedBuilder().setColor(COLOR.SUCCESS).setDescription('Duyệt xong hết rồi, queue sạch bóng 🎉')],
+        components: [],
+      });
+    }
+    page = Math.min(page, rows.length - 1);
+    await btn.update({ embeds: [buildEmbed(page)], components: buildRows(page) });
+  });
+
+  collector.on('end', (_, reason) => {
+    if (reason === 'time') i.editReply({ components: [] }).catch(() => {});
+  });
 }
 
 // ── Button handlers (exported for interactionCreate) ───────────────
@@ -340,7 +489,7 @@ export async function handleDeny(i: ButtonInteraction): Promise<void> {
   await i.update({ embeds: [deniedEmbed], components: [] });
 
   await i.client.users.fetch(pending.user_id)
-    .then(u => u.send(`❌ Ảnh thử thách của bạn ngày **${pending.challenge_date}** bị từ chối.\nDùng \`/challenge done\` để nộp lại ảnh khác nhé.`))
+    .then(u => u.send(`❌ Ảnh ngày **${pending.challenge_date}** bị từ chối rồi.\nNộp lại ảnh khác bằng \`/challenge done\` nha.`))
     .catch(() => null);
 }
 

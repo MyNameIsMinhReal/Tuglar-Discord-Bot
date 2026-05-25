@@ -19,6 +19,16 @@
   { "text": "Đặt báo thức dậy sớm ngày mai để bắt đầu ngày học tốt hơn", "category": "Sức khỏe", "emoji": "⏰", "difficulty": "easy" },
   { "text": "Chuẩn bị sẵn sách vở và tài liệu cho ngày học ngày mai", "category": "Tổ chức", "emoji": "🎒", "difficulty": "easy" },
   { "text": "Ghi ra 3 điều bạn đã học được hôm nay (dù nhỏ cũng được)", "category": "Viết lách", "emoji": "📝", "difficulty": "easy" },
+  { "text": "Đi bộ hoặc đạp xe 20 phút để não tỉnh táo hơn", "category": "Sức khỏe", "emoji": "🚶", "difficulty": "easy" },
+  { "text": "Xem 1 video giải thích khái niệm bạn đang học không hiểu", "category": "Học tập", "emoji": "🔍", "difficulty": "easy" },
+  { "text": "Tắt thông báo điện thoại và học 45 phút không bị gián đoạn", "category": "Tập trung", "emoji": "🎯", "difficulty": "easy" },
+  { "text": "Viết to-do list cho ngày học ngày mai trước khi đi ngủ", "category": "Lập kế hoạch", "emoji": "📓", "difficulty": "easy" },
+  { "text": "Nghe nhạc lo-fi hoặc nhạc không lời trong khi làm bài tập", "category": "Tập trung", "emoji": "🎵", "difficulty": "easy" },
+  { "text": "Chụp ảnh trang ghi chú đẹp nhất của bạn hôm nay", "category": "Học tập", "emoji": "📸", "difficulty": "easy" },
+  { "text": "Ôn lại bảng cửu chương hoặc công thức toán cơ bản 10 phút", "category": "Toán", "emoji": "🔢", "difficulty": "easy" },
+  { "text": "Xem 1 phim/series có phụ đề tiếng Anh thay vì tiếng Việt", "category": "Tiếng Anh", "emoji": "🎥", "difficulty": "easy" },
+  { "text": "Thử giải 1 câu đố logic hoặc riddle bằng tiếng Anh", "category": "Tư duy", "emoji": "🧩", "difficulty": "easy" },
+  { "text": "Gửi tin nhắn hỏi thăm một người bạn cùng học và cùng động viên nhau", "category": "Giao lưu", "emoji": "💬", "difficulty": "easy" },
 
   { "text": "Học 10 từ vựng tiếng Anh mới và viết câu ví dụ cho mỗi từ", "category": "Tiếng Anh", "emoji": "📖", "difficulty": "medium" },
   { "text": "Code 30 phút: giải 1 bài LeetCode Easy hoặc viết 1 function mới", "category": "Lập trình", "emoji": "💻", "difficulty": "medium" },
@@ -40,6 +50,12 @@
   { "text": "Code 30 phút chỉ dùng documentation — không copy-paste, không AI", "category": "Lập trình", "emoji": "📘", "difficulty": "medium" },
   { "text": "Đọc 1 chương sách và tóm tắt bằng bullet points ngắn gọn", "category": "Đọc sách", "emoji": "📖", "difficulty": "medium" },
   { "text": "Viết đoạn văn 200 từ tiếng Anh về chủ đề bạn vừa học", "category": "Viết lách", "emoji": "📄", "difficulty": "medium" },
+  { "text": "Học cách dùng 1 thư viện/tool mới liên quan đến ngành của bạn", "category": "Lập trình", "emoji": "🔧", "difficulty": "medium" },
+  { "text": "Giải 5 câu hỏi IELTS Reading hoặc Listening practice", "category": "Tiếng Anh", "emoji": "📋", "difficulty": "medium" },
+  { "text": "Vẽ sơ đồ giải thuật (flowchart) cho 1 bài toán logic bạn đang học", "category": "Tư duy", "emoji": "📊", "difficulty": "medium" },
+  { "text": "Làm 3 pomodoro liên tiếp (75 phút học thực sự) cho 1 môn", "category": "Tập trung", "emoji": "🔥", "difficulty": "medium" },
+  { "text": "Viết tóm tắt 150 từ cho 1 bài báo hoặc article tiếng Anh bất kỳ", "category": "Tiếng Anh", "emoji": "🗞️", "difficulty": "medium" },
+  { "text": "Tập thể dục buổi sáng 15 phút trước khi ngồi vào bàn học", "category": "Thể dục", "emoji": "🌅", "difficulty": "medium" },
 
   { "text": "Làm 1 đề thi thử hoàn chỉnh trong điều kiện như thi thật, sau đó tự chấm", "category": "Ôn bài", "emoji": "📝", "difficulty": "hard" },
   { "text": "Viết 1 bài blog hoặc bài học chia sẻ về chủ đề bạn vừa học (≥300 từ)", "category": "Viết lách", "emoji": "✏️", "difficulty": "hard" },
@@ -50,5 +66,10 @@
   { "text": "Đọc 1 chương sách giáo khoa và vẽ mind map chi tiết với đầy đủ nhánh", "category": "Đọc sách", "emoji": "🗺️", "difficulty": "hard" },
   { "text": "Xây dựng 1 bài thuyết trình slide ≥10 trang về chủ đề đang học", "category": "Kỹ năng", "emoji": "🖥️", "difficulty": "hard" },
   { "text": "Giải thích 1 thuật toán hoặc khái niệm phức tạp bằng ngôn ngữ đơn giản nhất có thể", "category": "Học tập", "emoji": "🧩", "difficulty": "hard" },
-  { "text": "Ôn tập toàn bộ 1 chương/môn học bằng cách làm lại tất cả bài tập trong đó", "category": "Ôn bài", "emoji": "🏆", "difficulty": "hard" }
+  { "text": "Ôn tập toàn bộ 1 chương/môn học bằng cách làm lại tất cả bài tập trong đó", "category": "Ôn bài", "emoji": "🏆", "difficulty": "hard" },
+  { "text": "Giải 3 bài LeetCode Medium liên tiếp trong 2 tiếng không tra lời giải", "category": "Lập trình", "emoji": "💀", "difficulty": "hard" },
+  { "text": "Tự dạy lại toàn bộ 1 chương cho 1 người bạn từ đầu đến cuối", "category": "Kỹ năng", "emoji": "👩‍🏫", "difficulty": "hard" },
+  { "text": "Làm bài tập theo nhóm 2 tiếng: phân vai, phân công và nộp kết quả", "category": "Học tập", "emoji": "👥", "difficulty": "hard" },
+  { "text": "Đọc 30 trang sách chuyên ngành và highlight những điểm quan trọng", "category": "Đọc sách", "emoji": "📗", "difficulty": "hard" },
+  { "text": "Làm 1 bài kiểm tra tự tạo cho chính mình và tự chấm nghiêm túc", "category": "Ôn bài", "emoji": "🎓", "difficulty": "hard" }
 ]

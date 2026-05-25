@@ -144,7 +144,7 @@ async function handleTranslate(i: ChatInputCommandInteraction): Promise<void> {
         )],
     });
   } catch {
-    await i.editReply({ embeds: [errorEmbed('Không thể dịch. Vui lòng thử lại.')] });
+    await i.editReply({ embeds: [errorEmbed('Dịch bị lỗi rồi, thử lại xem.')] });
   }
 }
 

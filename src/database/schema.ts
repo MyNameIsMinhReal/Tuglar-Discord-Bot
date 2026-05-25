@@ -98,6 +98,14 @@ export function initDatabase(): void {
       reason     TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS disabled_commands (
+      command_name TEXT NOT NULL,
+      guild_id     TEXT NOT NULL,
+      disabled_by  TEXT NOT NULL,
+      disabled_at  TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (command_name, guild_id)
+    );
   `);
 
   // Migrations for existing tables
