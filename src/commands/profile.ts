@@ -1,5 +1,5 @@
 import {
-  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, User,
+  SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, User, AttachmentBuilder,
 } from 'discord.js';
 import * as Profile from '../services/ProfileService';
 import * as Achievement from '../services/AchievementService';
@@ -8,6 +8,7 @@ import * as Gacha from '../services/GachaService';
 import { db } from '../database';
 import { COLOR, RARITY_COLORS, RARITY_STARS } from '../utils/embeds';
 import { formatCoins } from '../utils/helpers';
+import { renderProfileCard } from '../utils/profileCanvas';
 
 // ── Rarity colors for embed ────────────────────────────────────────
 const RARITY_EMOJI: Record<string, string> = { N: '⬜', R: '🟫', SR: '🟨', SSR: '🌟' };
@@ -88,6 +89,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
 // ── View ───────────────────────────────────────────────────────────
 async function handleView(i: ChatInputCommandInteraction): Promise<void> {
+  await i.deferReply();
+
   const target: User = i.options.getUser('user') ?? i.user;
   const guildId = i.guildId!;
 
@@ -97,32 +100,28 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
   const total    = Gacha.getTotalRolls(target.id, guildId);
 
   // Equipped items
-  const equippedTitle = settings.title_id ? Profile.getById(settings.title_id) : null;
-  const equippedBg    = settings.background_id ? Profile.getById(settings.background_id) : null;
-  const equippedFrame = settings.frame_id ? Profile.getById(settings.frame_id) : null;
+  const equippedTitle  = settings.title_id  ? Profile.getById(settings.title_id)  : null;
+  const equippedBg     = settings.background_id ? Profile.getById(settings.background_id) : null;
+  const equippedFrame  = settings.frame_id  ? Profile.getById(settings.frame_id)  : null;
   const equippedAccent = settings.accent_id ? Profile.getById(settings.accent_id) : null;
 
-  // Pick accent color for embed
   const ACCENT_COLORS: Record<string, number> = {
     accent_blue: 0x3498DB, accent_red: 0xE74C3C, accent_purple: 0x9B59B6,
     accent_neon: 0x00FF7F, accent_gold: 0xF1C40F,
   };
   const embedColor = settings.accent_id ? (ACCENT_COLORS[settings.accent_id] ?? COLOR.PRIMARY) : COLOR.PRIMARY;
 
-  // Current streak
   const streakRow = db.prepare(
     'SELECT streak FROM challenge_log WHERE user_id = ? AND guild_id = ? AND completed = 1 ORDER BY challenge_date DESC LIMIT 1'
   ).get(target.id, guildId) as { streak: number } | undefined;
   const streak = streakRow?.streak ?? 0;
 
-  // Best gacha card
   const bestCard = db.prepare(`
     SELECT item_rarity, item_emoji, item_name FROM gacha_inventory
     WHERE user_id = ? AND guild_id = ?
     ORDER BY CASE item_rarity WHEN 'SSR' THEN 0 WHEN 'SR' THEN 1 WHEN 'R' THEN 2 ELSE 3 END LIMIT 1
   `).get(target.id, guildId) as { item_rarity: string; item_emoji: string; item_name: string } | undefined;
 
-  // Prestige (from economy table, may be 0 if column not added yet)
   const prestigeRow = db.prepare(
     'SELECT prestige_points FROM economy WHERE user_id = ? AND guild_id = ?'
   ).get(target.id, guildId) as { prestige_points: number } | undefined;
@@ -130,8 +129,8 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
 
   const titleStr = equippedTitle ? `*${equippedTitle.name}*` : '';
   const cosmeticLines: string[] = [];
-  if (equippedBg)    cosmeticLines.push(`${TYPE_LABEL.background}: **${equippedBg.name}**`);
-  if (equippedFrame) cosmeticLines.push(`${TYPE_LABEL.frame}: **${equippedFrame.name}**`);
+  if (equippedBg)     cosmeticLines.push(`${TYPE_LABEL.background}: **${equippedBg.name}**`);
+  if (equippedFrame)  cosmeticLines.push(`${TYPE_LABEL.frame}: **${equippedFrame.name}**`);
   if (equippedAccent) cosmeticLines.push(`${TYPE_LABEL.accent}: **${equippedAccent.name}**`);
 
   const badgeStr = badges.length > 0
@@ -141,7 +140,6 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
   const embed = new EmbedBuilder()
     .setColor(embedColor)
     .setTitle(titleStr ? `${target.displayName} — ${titleStr}` : target.displayName)
-    .setThumbnail(target.displayAvatarURL({ size: 256 }))
     .addFields(
       {
         name: '💰 Economy',
@@ -174,7 +172,28 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
 
   embed.setFooter({ text: `Dùng /profile equip để trang bị cosmetics · /profile shop để mua` });
 
-  await i.reply({ embeds: [embed] });
+  // Try canvas card — attach as image if successful, fallback to thumbnail
+  try {
+    const cardBuf = await renderProfileCard({
+      username:     target.displayName,
+      avatarUrl:    target.displayAvatarURL({ size: 256, extension: 'png' }),
+      title:        equippedTitle?.name ?? null,
+      backgroundId: settings.background_id,
+      frameId:      settings.frame_id,
+      accentId:     settings.accent_id,
+      coins:        eco.balance,
+      streak,
+      totalRolls:   total,
+      bestCard:     bestCard ? `${bestCard.item_name} (${bestCard.item_rarity})` : null,
+      badges,
+    });
+    const attachment = new AttachmentBuilder(cardBuf, { name: 'profile.png' });
+    embed.setImage('attachment://profile.png');
+    await i.editReply({ embeds: [embed], files: [attachment] });
+  } catch {
+    embed.setThumbnail(target.displayAvatarURL({ size: 256 }));
+    await i.editReply({ embeds: [embed] });
+  }
 }
 
 // ── Equip ──────────────────────────────────────────────────────────

@@ -5,10 +5,12 @@ import fs from 'fs';
 import { BotCommand } from './types';
 import { initDatabase } from './database/schema';
 import { loadGachaPool } from './services/GachaService';
+import { startExpireCosmeticsTask } from './tasks/expireCosmetics';
 
 // ── Init DB & Data ─────────────────────────────────────────────────
 initDatabase();
 loadGachaPool();
+startExpireCosmeticsTask();
 
 // ── Create Client ──────────────────────────────────────────────────
 const client = new Client({
