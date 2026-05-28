@@ -1,8 +1,14 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { writeFile, unlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { db } from '../database';
 import { COLOR } from '../utils/embeds';
 import * as Eco from '../services/EconomyService';
 import { formatCoins } from '../utils/helpers';
+
+const BG_IDS = ['bg_study_room', 'bg_forest', 'bg_cyber', 'bg_galaxy', 'bg_shadow_realm'] as const;
+const BG_EXTS = ['jpg', 'jpeg', 'png', 'webp'] as const;
 
 // Commands that cannot be disabled
 const PROTECTED = new Set(['admin']);
@@ -73,6 +79,28 @@ export const data = new SlashCommandBuilder()
   .addSubcommand(sub => sub
     .setName('season_reset')
     .setDescription('[Admin] Kết thúc season hiện tại — reset 50% coins, chuyển sang prestige')
+  )
+  // ── Background Upload ───────────────────────────────────────────
+  .addSubcommand(sub => sub
+    .setName('bg_upload')
+    .setDescription('[Admin] Upload ảnh nền cho background cosmetic')
+    .addStringOption(o => o
+      .setName('background')
+      .setDescription('Background cosmetic cần set ảnh')
+      .setRequired(true)
+      .addChoices(
+        { name: 'Study Room',   value: 'bg_study_room'   },
+        { name: 'Forest',       value: 'bg_forest'       },
+        { name: 'Cyber',        value: 'bg_cyber'        },
+        { name: 'Galaxy',       value: 'bg_galaxy'       },
+        { name: 'Shadow Realm', value: 'bg_shadow_realm' },
+      )
+    )
+    .addAttachmentOption(o => o
+      .setName('image')
+      .setDescription('File ảnh (jpg/png/webp, khuyến nghị 800×300px)')
+      .setRequired(true)
+    )
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -86,6 +114,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     case 'eco_history':   return handleEcoHistory(interaction);
     case 'eco_stats':     return handleEcoStats(interaction);
     case 'season_reset':  return handleSeasonReset(interaction);
+    case 'bg_upload':     return handleBgUpload(interaction);
   }
 }
 
@@ -234,6 +263,46 @@ async function handleEcoStats(i: ChatInputCommandInteraction): Promise<void> {
         { name: '🔥 Coins đã đốt/tiêu', value: formatCoins(Math.max(0, burned)), inline: true },
       )],
     ephemeral: true,
+  });
+}
+
+// ── Background Upload ──────────────────────────────────────────────
+async function handleBgUpload(i: ChatInputCommandInteraction): Promise<void> {
+  const bgId      = i.options.getString('background', true);
+  const attachment = i.options.getAttachment('image', true);
+
+  const VALID_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!attachment.contentType || !VALID_TYPES.includes(attachment.contentType)) {
+    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ File phải là ảnh jpg, png hoặc webp.')], ephemeral: true });
+    return;
+  }
+
+  await i.deferReply({ ephemeral: true });
+
+  const ext     = attachment.contentType === 'image/jpeg' ? 'jpg' : attachment.contentType.split('/')[1];
+  const bgDir   = join(process.cwd(), 'assets/backgrounds');
+  const destPath = join(bgDir, `${bgId}.${ext}`);
+
+  // Remove old files for this background ID (any extension)
+  for (const oldExt of BG_EXTS) {
+    const old = join(bgDir, `${bgId}.${oldExt}`);
+    if (existsSync(old)) await unlink(old).catch(() => {});
+  }
+
+  const res    = await fetch(attachment.url);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  await writeFile(destPath, buffer);
+
+  await i.editReply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.SUCCESS)
+      .setTitle('✅ Upload thành công!')
+      .addFields(
+        { name: '🖼️ Background', value: `\`${bgId}\``, inline: true },
+        { name: '📁 File',       value: `${bgId}.${ext} (${(buffer.length / 1024).toFixed(0)} KB)`, inline: true },
+      )
+      .setImage(attachment.url)
+      .setFooter({ text: 'Dùng /profile view để xem kết quả' })],
   });
 }
 

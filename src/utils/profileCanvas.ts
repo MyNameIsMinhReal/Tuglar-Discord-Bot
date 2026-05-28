@@ -1,4 +1,5 @@
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
+import { join } from 'node:path';
 import { formatCoins } from './helpers';
 
 export interface ProfileCardData {
@@ -14,6 +15,16 @@ export interface ProfileCardData {
   bestCard: string | null;
   badges: Array<{ name: string; emoji: string }>;
 }
+
+const ASSETS = join(process.cwd(), 'assets');
+
+// Register Inter font — falls back to system sans-serif if files are missing
+try {
+  GlobalFonts.registerFromPath(join(ASSETS, 'fonts/Inter-Regular.ttf'), 'Inter');
+  GlobalFonts.registerFromPath(join(ASSETS, 'fonts/Inter-Bold.ttf'), 'Inter');
+} catch { /* font files not present yet */ }
+
+const FONT = GlobalFonts.families.some(f => f.family === 'Inter') ? 'Inter' : 'sans-serif';
 
 const BG_THEMES: Record<string, [string, string]> = {
   bg_study_room:   ['#2c1810', '#5c3a1e'],
@@ -39,22 +50,39 @@ const ACCENT_HEX: Record<string, string> = {
   accent_gold:   '#F1C40F',
 };
 
+async function loadBgImage(backgroundId: string | null): Promise<Awaited<ReturnType<typeof loadImage>> | null> {
+  if (!backgroundId) return null;
+  for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+    try {
+      return await loadImage(join(ASSETS, `backgrounds/${backgroundId}.${ext}`));
+    } catch { continue; }
+  }
+  return null;
+}
+
 export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> {
   const W = 800, H = 300;
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
 
   // ── Background ──────────────────────────────────────────────────
-  const [bgC1, bgC2] = BG_THEMES[data.backgroundId ?? ''] ?? ['#1a1a2e', '#16213e'];
-  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-  bgGrad.addColorStop(0, bgC1);
-  bgGrad.addColorStop(1, bgC2);
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, W, H);
-
-  // Subtle scanline texture
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.015)';
-  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+  const bgImage = await loadBgImage(data.backgroundId);
+  if (bgImage) {
+    ctx.drawImage(bgImage, 0, 0, W, H);
+    // Dark overlay so text stays readable over any image
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    const [bgC1, bgC2] = BG_THEMES[data.backgroundId ?? ''] ?? ['#1a1a2e', '#16213e'];
+    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+    bgGrad.addColorStop(0, bgC1);
+    bgGrad.addColorStop(1, bgC2);
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+    // Subtle scanline texture
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.015)';
+    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+  }
 
   const accent = ACCENT_HEX[data.accentId ?? ''] ?? '#5865F2';
 
@@ -88,7 +116,6 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
     ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
     ctx.restore();
   } catch {
-    // Fallback solid circle
     ctx.fillStyle = '#5865F2';
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -100,13 +127,13 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
 
   // Username
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 28px sans-serif';
+  ctx.font = `bold 28px ${FONT}`;
   ctx.fillText(data.username, tx, 52);
 
   // Title
   if (data.title) {
     ctx.fillStyle = accent;
-    ctx.font = '16px sans-serif';
+    ctx.font = `16px ${FONT}`;
     ctx.fillText(data.title, tx, 76);
   }
 
@@ -134,22 +161,22 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
     const y = 120 + row * 44;
 
     ctx.fillStyle = '#777777';
-    ctx.font = '12px sans-serif';
+    ctx.font = `12px ${FONT}`;
     ctx.fillText(label, x, y);
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 17px sans-serif';
+    ctx.font = `bold 17px ${FONT}`;
     ctx.fillText(value, x, y + 20);
   });
 
   // Achievement names (up to 5, ellipsis if more)
   if (data.badges.length > 0) {
     ctx.fillStyle = accent + 'AA';
-    ctx.font = '11px sans-serif';
+    ctx.font = `11px ${FONT}`;
     ctx.fillText('ACHIEVEMENTS', tx, 238);
 
     ctx.fillStyle = '#CCCCCC';
-    ctx.font = '13px sans-serif';
+    ctx.font = `13px ${FONT}`;
     const shown = data.badges.slice(0, 5).map(b => b.name);
     const suffix = data.badges.length > 5 ? ` +${data.badges.length - 5}` : '';
     ctx.fillText(shown.join('  ·  ') + suffix, tx, 256);
