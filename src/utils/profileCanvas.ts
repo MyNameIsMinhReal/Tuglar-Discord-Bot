@@ -83,6 +83,14 @@ async function drawUI(
   const cx = 130, cy = 150, r = 78, tx = 250;
   const frameColor = FRAME_COLORS[data.frameId ?? ''] ?? accent;
 
+  // Dark gradient panel behind text area so text stays readable over any background
+  const textBg = ctx.createLinearGradient(200, 0, W, 0);
+  textBg.addColorStop(0,    'rgba(0,0,0,0)');
+  textBg.addColorStop(0.12, 'rgba(0,0,0,0.50)');
+  textBg.addColorStop(1,    'rgba(0,0,0,0.60)');
+  ctx.fillStyle = textBg;
+  ctx.fillRect(200, 0, W - 200, H);
+
   // Frame glow
   if (data.frameId === 'frame_neon')     { ctx.shadowColor = '#00FF7F'; ctx.shadowBlur = 20; }
   else if (data.frameId === 'frame_monarch') { ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 14; }
@@ -109,6 +117,12 @@ async function drawUI(
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Text shadow for all text elements below
+  ctx.shadowColor = 'rgba(0,0,0,0.95)';
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
 
   // Username + title
   ctx.fillStyle = '#FFFFFF';
@@ -142,7 +156,7 @@ async function drawUI(
     const x = tx + (idx % 2) * 255;
     const y = 120 + Math.floor(idx / 2) * 44;
 
-    ctx.fillStyle = '#777777';
+    ctx.fillStyle = '#AAAAAA';
     ctx.font = `12px ${FONT}`;
     ctx.fillText(label, x, y);
 
@@ -163,6 +177,12 @@ async function drawUI(
     const suffix = data.badges.length > 5 ? ` +${data.badges.length - 5}` : '';
     ctx.fillText(shown.join('  ·  ') + suffix, tx, 256);
   }
+
+  // Reset text shadow before drawing shapes
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
 
   // Bottom accent bar
   const barGrad = ctx.createLinearGradient(0, 0, W, 0);
