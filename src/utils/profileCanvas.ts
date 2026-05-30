@@ -1,6 +1,22 @@
-import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
+import { createCanvas, loadImage, GlobalFonts, SKRSContext2D } from '@napi-rs/canvas';
 import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import sharp from 'sharp';
 import { formatCoins } from './helpers';
+
+// gif-encoder-2 is a CommonJS module
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const GIFEncoder = require('gif-encoder-2') as new (
+  width: number, height: number, algorithm?: string, useOptimizer?: boolean, totalFrames?: number
+) => {
+  setRepeat(n: number): void;
+  setDelay(ms: number): void;
+  setQuality(q: number): void;
+  start(): void;
+  addFrame(ctx: unknown): void;
+  finish(): void;
+  out: { getData(): Uint8Array };
+};
 
 export interface ProfileCardData {
   username: string;
@@ -16,13 +32,17 @@ export interface ProfileCardData {
   badges: Array<{ name: string; emoji: string }>;
 }
 
+export interface ProfileCardResult {
+  buffer: Buffer;
+  filename: string;
+}
+
 const ASSETS = join(process.cwd(), 'assets');
 
-// Register Inter font — falls back to system sans-serif if files are missing
 try {
   GlobalFonts.registerFromPath(join(ASSETS, 'fonts/Inter-Regular.ttf'), 'Inter');
   GlobalFonts.registerFromPath(join(ASSETS, 'fonts/Inter-Bold.ttf'), 'Inter');
-} catch { /* font files not present yet */ }
+} catch { /* font files not present */ }
 
 const FONT = GlobalFonts.families.some(f => f.family === 'Inter') ? 'Inter' : 'sans-serif';
 
@@ -50,54 +70,22 @@ const ACCENT_HEX: Record<string, string> = {
   accent_gold:   '#F1C40F',
 };
 
-async function loadBgImage(backgroundId: string | null): Promise<Awaited<ReturnType<typeof loadImage>> | null> {
-  if (!backgroundId) return null;
-  for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
-    try {
-      return await loadImage(join(ASSETS, `backgrounds/${backgroundId}.${ext}`));
-    } catch { continue; }
-  }
-  return null;
-}
+const W = 800, H = 300;
 
-export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> {
-  const W = 800, H = 300;
-  const canvas = createCanvas(W, H);
-  const ctx = canvas.getContext('2d');
+// ── Shared UI drawing ──────────────────────────────────────────────
 
-  // ── Background ──────────────────────────────────────────────────
-  const bgImage = await loadBgImage(data.backgroundId);
-  if (bgImage) {
-    ctx.drawImage(bgImage, 0, 0, W, H);
-    // Dark overlay so text stays readable over any image
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-    ctx.fillRect(0, 0, W, H);
-  } else {
-    const [bgC1, bgC2] = BG_THEMES[data.backgroundId ?? ''] ?? ['#1a1a2e', '#16213e'];
-    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-    bgGrad.addColorStop(0, bgC1);
-    bgGrad.addColorStop(1, bgC2);
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, W, H);
-    // Subtle scanline texture
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.015)';
-    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
-  }
-
-  const accent = ACCENT_HEX[data.accentId ?? ''] ?? '#5865F2';
-
-  // ── Avatar + Frame ──────────────────────────────────────────────
-  const cx = 130, cy = 150, r = 78;
+async function drawUI(
+  ctx: SKRSContext2D,
+  data: ProfileCardData,
+  accent: string,
+  preloadedAvatar?: Awaited<ReturnType<typeof loadImage>> | null,
+): Promise<void> {
+  const cx = 130, cy = 150, r = 78, tx = 250;
   const frameColor = FRAME_COLORS[data.frameId ?? ''] ?? accent;
 
-  // Glow for neon / monarch frames
-  if (data.frameId === 'frame_neon') {
-    ctx.shadowColor = '#00FF7F';
-    ctx.shadowBlur = 20;
-  } else if (data.frameId === 'frame_monarch') {
-    ctx.shadowColor = '#FFD700';
-    ctx.shadowBlur = 14;
-  }
+  // Frame glow
+  if (data.frameId === 'frame_neon')     { ctx.shadowColor = '#00FF7F'; ctx.shadowBlur = 20; }
+  else if (data.frameId === 'frame_monarch') { ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 14; }
 
   ctx.strokeStyle = frameColor;
   ctx.lineWidth = 7;
@@ -106,31 +94,27 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
   ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Avatar (circular clip)
-  try {
-    const img = await loadImage(data.avatarUrl);
+  // Avatar
+  const avatarImg = preloadedAvatar ?? await loadImage(data.avatarUrl).catch(() => null);
+  if (avatarImg) {
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
+    ctx.drawImage(avatarImg, cx - r, cy - r, r * 2, r * 2);
     ctx.restore();
-  } catch {
+  } else {
     ctx.fillStyle = '#5865F2';
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // ── Right Side ──────────────────────────────────────────────────
-  const tx = 250;
-
-  // Username
+  // Username + title
   ctx.fillStyle = '#FFFFFF';
   ctx.font = `bold 28px ${FONT}`;
   ctx.fillText(data.username, tx, 52);
 
-  // Title
   if (data.title) {
     ctx.fillStyle = accent;
     ctx.font = `16px ${FONT}`;
@@ -145,7 +129,7 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
   ctx.lineTo(W - 25, 92);
   ctx.stroke();
 
-  // Stats grid (2 columns × 2 rows)
+  // Stats grid
   const stats: [string, string][] = [
     ['COINS',  formatCoins(data.coins)],
     ['STREAK', `${data.streak} days`],
@@ -155,10 +139,8 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
   if (data.bestCard) stats[2] = ['BEST CARD', data.bestCard];
 
   stats.forEach(([label, value], idx) => {
-    const col = idx % 2;
-    const row = Math.floor(idx / 2);
-    const x = tx + col * 255;
-    const y = 120 + row * 44;
+    const x = tx + (idx % 2) * 255;
+    const y = 120 + Math.floor(idx / 2) * 44;
 
     ctx.fillStyle = '#777777';
     ctx.font = `12px ${FONT}`;
@@ -169,7 +151,7 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
     ctx.fillText(value, x, y + 20);
   });
 
-  // Achievement names (up to 5, ellipsis if more)
+  // Achievements
   if (data.badges.length > 0) {
     ctx.fillStyle = accent + 'AA';
     ctx.font = `11px ${FONT}`;
@@ -189,6 +171,102 @@ export async function renderProfileCard(data: ProfileCardData): Promise<Buffer> 
   barGrad.addColorStop(1, accent + '00');
   ctx.fillStyle = barGrad;
   ctx.fillRect(0, H - 4, W, 4);
+}
 
-  return canvas.toBuffer('image/png');
+// ── Animated GIF rendering ─────────────────────────────────────────
+
+async function renderAnimatedCard(data: ProfileCardData): Promise<Buffer> {
+  const gifPath = join(ASSETS, `backgrounds/${data.backgroundId}.gif`);
+  const gifBuf  = readFileSync(gifPath);
+
+  const meta       = await sharp(gifBuf, { animated: true }).metadata();
+  const frameCount = Math.min(meta.pages ?? 1, 20); // cap to keep file size sane
+  const delays     = meta.delay ?? [];
+  const accent     = ACCENT_HEX[data.accentId ?? ''] ?? '#5865F2';
+
+  // Pre-load avatar once — reuse across all frames
+  const avatarImg = await loadImage(data.avatarUrl).catch(() => null);
+
+  const encoder = new GIFEncoder(W, H, 'neuquant', true, frameCount);
+  encoder.setRepeat(0); // loop forever
+  encoder.start();
+
+  for (let i = 0; i < frameCount; i++) {
+    encoder.setDelay(delays[i] ?? 80);
+
+    // Extract this frame as PNG, resize to card dimensions
+    const framePng = await sharp(gifBuf, { page: i })
+      .resize(W, H, { fit: 'cover', position: 'centre' })
+      .png()
+      .toBuffer();
+
+    const canvas = createCanvas(W, H);
+    const ctx    = canvas.getContext('2d');
+
+    // Draw frame as background
+    const bgImg = await loadImage(framePng);
+    ctx.drawImage(bgImg, 0, 0, W, H);
+
+    // Dark overlay for text readability
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(0, 0, W, H);
+
+    await drawUI(ctx, data, accent, avatarImg);
+
+    encoder.addFrame(ctx);
+  }
+
+  encoder.finish();
+  return Buffer.from(encoder.out.getData());
+}
+
+// ── Static background loader ───────────────────────────────────────
+
+async function loadBgImage(backgroundId: string | null) {
+  if (!backgroundId) return null;
+  for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+    try {
+      return await loadImage(join(ASSETS, `backgrounds/${backgroundId}.${ext}`));
+    } catch { continue; }
+  }
+  return null;
+}
+
+// ── Main export ────────────────────────────────────────────────────
+
+export async function renderProfileCard(data: ProfileCardData): Promise<ProfileCardResult> {
+  // Animated path: GIF background detected
+  if (data.backgroundId) {
+    const gifPath = join(ASSETS, `backgrounds/${data.backgroundId}.gif`);
+    if (existsSync(gifPath)) {
+      const buffer = await renderAnimatedCard(data);
+      return { buffer, filename: 'profile.gif' };
+    }
+  }
+
+  // Static path: existing logic
+  const canvas = createCanvas(W, H);
+  const ctx    = canvas.getContext('2d');
+
+  const bgImage = await loadBgImage(data.backgroundId);
+  if (bgImage) {
+    ctx.drawImage(bgImage, 0, 0, W, H);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    const [c1, c2] = BG_THEMES[data.backgroundId ?? ''] ?? ['#1a1a2e', '#16213e'];
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, c1);
+    grad.addColorStop(1, c2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    // Subtle scanline texture
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.015)';
+    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+  }
+
+  const accent = ACCENT_HEX[data.accentId ?? ''] ?? '#5865F2';
+  await drawUI(ctx, data, accent);
+
+  return { buffer: canvas.toBuffer('image/png'), filename: 'profile.png' };
 }

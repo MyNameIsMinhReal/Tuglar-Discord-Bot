@@ -7,8 +7,7 @@ import { COLOR } from '../utils/embeds';
 import * as Eco from '../services/EconomyService';
 import { formatCoins } from '../utils/helpers';
 
-const BG_IDS = ['bg_study_room', 'bg_forest', 'bg_cyber', 'bg_galaxy', 'bg_shadow_realm'] as const;
-const BG_EXTS = ['jpg', 'jpeg', 'png', 'webp'] as const;
+const BG_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif'] as const;
 
 // Commands that cannot be disabled
 const PROTECTED = new Set(['admin']);
@@ -24,6 +23,8 @@ const ALL_COMMANDS = [
   { name: '/challenge', value: 'challenge' },
   { name: '/journal',   value: 'journal' },
   { name: '/docs',      value: 'docs' },
+  { name: '/profile',   value: 'profile' },
+  { name: '/index',     value: 'index' },
 ];
 
 export const data = new SlashCommandBuilder()
@@ -98,7 +99,7 @@ export const data = new SlashCommandBuilder()
     )
     .addAttachmentOption(o => o
       .setName('image')
-      .setDescription('File ảnh (jpg/png/webp, khuyến nghị 800×300px)')
+      .setDescription('File ảnh (jpg/png/webp) hoặc ảnh động (gif) — khuyến nghị 800×300px')
       .setRequired(true)
     )
   );
@@ -271,9 +272,9 @@ async function handleBgUpload(i: ChatInputCommandInteraction): Promise<void> {
   const bgId      = i.options.getString('background', true);
   const attachment = i.options.getAttachment('image', true);
 
-  const VALID_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const VALID_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   if (!attachment.contentType || !VALID_TYPES.includes(attachment.contentType)) {
-    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ File phải là ảnh jpg, png hoặc webp.')], ephemeral: true });
+    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ File phải là ảnh jpg, png, webp hoặc gif.')], ephemeral: true });
     return;
   }
 

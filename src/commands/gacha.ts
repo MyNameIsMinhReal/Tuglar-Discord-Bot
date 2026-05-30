@@ -157,13 +157,13 @@ function packSummaryEmbed(items: GachaItem[], remainingCoins: number): EmbedBuil
 
 // Button row builders
 const rowOpen   = () => new ActionRowBuilder<ButtonBuilder>().addComponents(
-  new ButtonBuilder().setCustomId('pack_open').setLabel('✂️  Mở Pack!').setStyle(ButtonStyle.Success),
+  new ButtonBuilder().setCustomId('pack_open').setLabel('Mở Pack').setEmoji('✂️').setStyle(ButtonStyle.Success),
 );
 const rowReveal = () => new ActionRowBuilder<ButtonBuilder>().addComponents(
-  new ButtonBuilder().setCustomId('pack_reveal').setLabel('✨  Lật Bài!').setStyle(ButtonStyle.Danger),
+  new ButtonBuilder().setCustomId('pack_reveal').setLabel('Lật bài').setEmoji('✨').setStyle(ButtonStyle.Danger),
 );
 const rowNext   = () => new ActionRowBuilder<ButtonBuilder>().addComponents(
-  new ButtonBuilder().setCustomId('pack_next').setLabel('➡️  Lá tiếp theo').setStyle(ButtonStyle.Primary),
+  new ButtonBuilder().setCustomId('pack_next').setLabel('Tiếp').setEmoji('▶️').setStyle(ButtonStyle.Primary),
 );
 
 // ── Pack Opening ───────────────────────────────────────────────────

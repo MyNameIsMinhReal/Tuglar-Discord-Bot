@@ -1,12 +1,17 @@
 import {
   SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, User, AttachmentBuilder,
+  StringSelectMenuBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
+  GuildMember, Role, MessageComponentInteraction,
 } from 'discord.js';
+import {
+  BOOSTER_ROLE_ID, BOOSTER_TIERS, ALL_COLOR_ROLES, FOOTER_TEXT as BOOSTER_FOOTER,
+} from '../services/BoosterService';
 import * as Profile from '../services/ProfileService';
 import * as Achievement from '../services/AchievementService';
 import * as Eco from '../services/EconomyService';
 import * as Gacha from '../services/GachaService';
 import { db } from '../database';
-import { COLOR, RARITY_COLORS, RARITY_STARS } from '../utils/embeds';
+import { COLOR, RARITY_COLORS } from '../utils/embeds';
 import { formatCoins } from '../utils/helpers';
 import { renderProfileCard } from '../utils/profileCanvas';
 
@@ -21,6 +26,23 @@ const TYPE_LABEL: Record<string, string> = {
   sticker:    '🌀 Sticker',
   name_style: '✍️ Name Style',
 };
+
+// ── Booster Color Packs ────────────────────────────────────────────
+const COLOR_PACK_1 = [
+  { label: 'Sky',    value: '1162545019123666984', emoji: { id: '1509998906723799191', name: 'IC_Sky' } },
+  { label: 'Carrot', value: '1157296480722366555', emoji: { id: '1510003170661892399', name: 'IC_Carrot' } },
+  { label: 'Rose',   value: '1157297666879926304', emoji: { id: '1510003959652155556', name: 'IC_Rose' } },
+  { label: 'Purple', value: '1157298499461840906', emoji: { id: '1510004463362900229', name: 'IC_Purple' } },
+  { label: 'Peachy', value: '1157298054764974130', emoji: { id: '1509997745916612768', name: 'IC_Peachy' } },
+];
+
+const COLOR_PACK_2 = [
+  { label: 'Mint',        value: '1164764867769667664', emoji: { id: '1510016060982558731', name: 'IC_Mint' } },
+  { label: 'xLemon',      value: '1164766440335876126', emoji: { id: '1510016065122336929', name: 'IC_xLemon' } },
+  { label: '1stHeart',    value: '1510012176876699768', emoji: { id: '1510016047896334536', name: 'IC_1stHeart' } },
+  { label: 'Cyber-20xx',  value: '1164946570920337538', emoji: { id: '1510016058613043230', name: 'IC_Cyber20xx' } },
+  { label: 'TraDaoCamSa', value: '1164946156858650635', emoji: { id: '1510016063125852410', name: 'IC_TraDaoCamSa' } },
+];
 
 export const data = new SlashCommandBuilder()
   .setName('profile')
@@ -67,11 +89,6 @@ export const data = new SlashCommandBuilder()
         { name: '🔲 Frame', value: 'frame' },
       )
     )
-  )
-  .addSubcommand(sub => sub
-    .setName('buy')
-    .setDescription('Mua cosmetic từ shop')
-    .addStringOption(o => o.setName('item').setDescription('ID của item muốn mua').setRequired(true))
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -83,7 +100,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     case 'inventory':    return handleInventory(interaction);
     case 'achievements': return handleAchievements(interaction);
     case 'shop':         return handleShop(interaction);
-    case 'buy':          return handleBuy(interaction);
   }
 }
 
@@ -174,7 +190,7 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
 
   // Try canvas card — attach as image if successful, fallback to thumbnail
   try {
-    const cardBuf = await renderProfileCard({
+    const { buffer: cardBuf, filename: cardFile } = await renderProfileCard({
       username:     target.displayName,
       avatarUrl:    target.displayAvatarURL({ size: 256, extension: 'png' }),
       title:        equippedTitle?.name ?? null,
@@ -187,8 +203,8 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
       bestCard:     bestCard ? `${bestCard.item_name} (${bestCard.item_rarity})` : null,
       badges,
     });
-    const attachment = new AttachmentBuilder(cardBuf, { name: 'profile.png' });
-    embed.setImage('attachment://profile.png');
+    const attachment = new AttachmentBuilder(cardBuf, { name: cardFile });
+    embed.setImage(`attachment://${cardFile}`);
     await i.editReply({ embeds: [embed], files: [attachment] });
   } catch {
     embed.setThumbnail(target.displayAvatarURL({ size: 256 }));
@@ -234,12 +250,121 @@ async function handleUnequip(i: ChatInputCommandInteraction): Promise<void> {
   });
 }
 
+// ── Booster Role Helpers ───────────────────────────────────────────
+function getUserTier(member: GuildMember): number {
+  if (Object.values(BOOSTER_TIERS).some(id => member.roles.cache.has(id))) return 2;
+  if (member.roles.cache.has(BOOSTER_ROLE_ID)) return 1;
+  return 0;
+}
+
+function buildBoosterRows(tier: number): ActionRowBuilder<any>[] {
+  if (tier === 0) return [];
+  const rows: ActionRowBuilder<any>[] = [];
+
+  if (tier >= 1) {
+    rows.push(
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('booster_pack1')
+          .setPlaceholder('🎨 Color Pack - Booster Gốc')
+          .addOptions(
+            { label: 'Gỡ Role Màu', value: '0', emoji: '❌' },
+            ...COLOR_PACK_1.map(c => ({ label: c.label, value: c.value, emoji: c.emoji })),
+          ),
+      ),
+    );
+  }
+
+  if (tier >= 2) {
+    rows.push(
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('booster_pack2')
+          .setPlaceholder('🎨 Color Pack - Booster I')
+          .addOptions(
+            { label: 'Gỡ Role Màu', value: '0', emoji: '❌' },
+            ...COLOR_PACK_2.map(c => ({ label: c.label, value: c.value, emoji: c.emoji })),
+          ),
+      ),
+    );
+  }
+
+  rows.push(
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId('booster_clear')
+        .setLabel('Gỡ Toàn Bộ Màu & Icon')
+        .setEmoji('🗑️')
+        .setStyle(ButtonStyle.Danger),
+    ),
+  );
+
+  return rows;
+}
+
+async function applyColorRole(
+  comp: MessageComponentInteraction,
+  guild: import('discord.js').Guild,
+  userId: string,
+  selectedValue: string,
+): Promise<void> {
+  const member = guild.members.cache.get(userId)
+    ?? await guild.members.fetch(userId).catch(() => null);
+
+  if (!member) {
+    await comp.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ Không tìm thấy member.')], ephemeral: true });
+    return;
+  }
+
+  if (selectedValue === 'clear' || selectedValue === '0') {
+    const toRemove = ALL_COLOR_ROLES
+      .map(id => guild.roles.cache.get(id))
+      .filter((r): r is Role => !!r && member.roles.cache.has(r.id));
+    if (toRemove.length) await member.roles.remove(toRemove);
+    await comp.reply({
+      embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('🗑️・Đã thu hồi role thành công!').setFooter({ text: BOOSTER_FOOTER })],
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const newRole = guild.roles.cache.get(selectedValue);
+  if (!newRole) {
+    await comp.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ Role không tồn tại.')], ephemeral: true });
+    return;
+  }
+
+  if (member.roles.cache.has(selectedValue)) {
+    await member.roles.remove(newRole);
+    await comp.reply({
+      embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setTitle(`Đã gỡ bỏ role: ${newRole.name}`).setFooter({ text: BOOSTER_FOOTER })],
+      ephemeral: true,
+    });
+  } else {
+    const toRemove = ALL_COLOR_ROLES
+      .map(id => guild.roles.cache.get(id))
+      .filter((r): r is Role => !!r && member.roles.cache.has(r.id));
+    if (toRemove.length) await member.roles.remove(toRemove);
+    await member.roles.add(newRole);
+    await comp.reply({
+      embeds: [new EmbedBuilder().setColor(COLOR.SUCCESS).setTitle(`✅ Đã trang bị role: ${newRole.name}`).setFooter({ text: BOOSTER_FOOTER })],
+      ephemeral: true,
+    });
+  }
+}
+
 // ── Inventory ──────────────────────────────────────────────────────
 async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
-  const owned   = Profile.getOwned(i.user.id, i.guildId!);
+  const guild    = i.guild!;
+  const owned    = Profile.getOwned(i.user.id, i.guildId!);
   const settings = Profile.getSettings(i.user.id, i.guildId!);
 
-  if (owned.length === 0) {
+  const member = guild.members.cache.get(i.user.id)
+    ?? await guild.members.fetch(i.user.id).catch(() => null);
+  const tier = member ? getUserTier(member) : 0;
+  const boosterRows = buildBoosterRows(tier);
+
+  if (owned.length === 0 && tier === 0) {
     await i.reply({
       embeds: [new EmbedBuilder()
         .setColor(COLOR.INFO)
@@ -254,27 +379,56 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
     settings.accent_id, settings.sticker_id, settings.name_style_id,
   ].filter(Boolean) as string[]);
 
-  // Group by type
-  const grouped = new Map<string, string[]>();
-  for (const o of owned) {
-    const item = Profile.getById(o.cosmetic_id);
-    if (!item) continue;
-    if (!grouped.has(item.type)) grouped.set(item.type, []);
-    const eq = equipped.has(o.cosmetic_id) ? ' ✅' : '';
-    const expiry = o.expires_at ? ` *(hết ${new Date(o.expires_at).toLocaleDateString('vi-VN')})*` : '';
-    grouped.get(item.type)!.push(`\`${item.id}\` ${RARITY_EMOJI[item.rarity]} **${item.name}**${eq}${expiry}`);
-  }
-
   const embed = new EmbedBuilder()
     .setColor(COLOR.PRIMARY)
     .setTitle(`🗄️ Kho cosmetic — ${i.user.displayName}`)
-    .setFooter({ text: '✅ = đang trang bị · Dùng /profile equip <id> để trang bị' });
+    .setFooter({ text: '✅ đang trang bị · /profile equip <id>' });
 
-  for (const [type, lines] of grouped) {
-    embed.addFields({ name: TYPE_LABEL[type] ?? type, value: lines.join('\n') });
+  if (owned.length > 0) {
+    const grouped = new Map<string, string[]>();
+    for (const o of owned) {
+      const item = Profile.getById(o.cosmetic_id);
+      if (!item) continue;
+      if (!grouped.has(item.type)) grouped.set(item.type, []);
+      const eq     = equipped.has(o.cosmetic_id) ? ' ✅' : '';
+      const expiry = o.expires_at ? ` · hết ${new Date(o.expires_at).toLocaleDateString('vi-VN')}` : '';
+      grouped.get(item.type)!.push(`${RARITY_EMOJI[item.rarity]} **${item.name}**${eq}${expiry} · \`${item.id}\``);
+    }
+    for (const [type, lines] of grouped) {
+      embed.addFields({ name: TYPE_LABEL[type] ?? type, value: lines.join('\n') });
+    }
+  } else {
+    embed.setDescription('*Chưa có cosmetic nào. Dùng `/profile shop` để mua!*');
   }
 
-  await i.reply({ embeds: [embed], ephemeral: true });
+  if (tier > 0) {
+    embed.addFields({
+      name: '🎨 Role Màu Booster',
+      value: tier >= 2
+        ? 'Đã mở **Color Pack - Booster Gốc** và **Color Pack - Booster I**. Chọn màu từ menu bên dưới.'
+        : 'Đã mở **Color Pack - Booster Gốc**. Chọn màu từ menu bên dưới.',
+    });
+  }
+
+  await i.reply({ embeds: [embed], components: boosterRows, ephemeral: true });
+
+  if (boosterRows.length === 0) return;
+
+  const msg = await i.fetchReply();
+  const collector = msg.createMessageComponentCollector({ time: 300_000 });
+
+  collector.on('collect', async comp => {
+    if (comp.customId === 'booster_pack1' || comp.customId === 'booster_pack2') {
+      const sel = comp as import('discord.js').StringSelectMenuInteraction;
+      await applyColorRole(sel, guild, i.user.id, sel.values[0]);
+    } else if (comp.customId === 'booster_clear') {
+      await applyColorRole(comp as MessageComponentInteraction, guild, i.user.id, 'clear');
+    }
+  });
+
+  collector.on('end', () => {
+    i.editReply({ components: [] }).catch(() => {});
+  });
 }
 
 // ── Achievements ───────────────────────────────────────────────────
@@ -296,7 +450,128 @@ async function handleAchievements(i: ChatInputCommandInteraction): Promise<void>
   await i.reply({ embeds: [embed], ephemeral: true });
 }
 
-// ── Shop ───────────────────────────────────────────────────────────
+// ── Preview helper ─────────────────────────────────────────────────
+async function previewCosmetic(
+  comp: import('discord.js').StringSelectMenuInteraction,
+  guildId: string,
+): Promise<void> {
+  await comp.deferReply({ ephemeral: true });
+
+  const itemId       = comp.values[0];
+  const item         = Profile.getById(itemId);
+  if (!item) {
+    await comp.editReply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ Item không tồn tại.')] });
+    return;
+  }
+
+  const userId       = comp.user.id;
+  const eco          = Eco.getOrCreate(userId, guildId);
+  const settings     = Profile.getSettings(userId, guildId);
+  const alreadyOwned = Profile.getOwned(userId, guildId).some(o => o.cosmetic_id === itemId);
+
+  const embed = new EmbedBuilder()
+    .setColor(RARITY_COLORS[item.rarity] ?? COLOR.INFO)
+    .setTitle(item.name)
+    .setDescription(item.description + (alreadyOwned ? '\n\n✅ Đã sở hữu' : ''))
+    .addFields(
+      { name: 'Độ hiếm', value: `${RARITY_EMOJI[item.rarity]} ${item.rarity}`, inline: true },
+      { name: 'Loại',    value: TYPE_LABEL[item.type] ?? item.type,            inline: true },
+      { name: 'Giá',     value: `${formatCoins(item.price)} coins`,            inline: true },
+      { name: 'Ví bạn',  value: `${formatCoins(eco.balance)} coins`,           inline: true },
+    );
+
+  const files: AttachmentBuilder[] = [];
+
+  if (['background', 'frame', 'accent'].includes(item.type)) {
+    try {
+      const streakRow = db.prepare(
+        'SELECT streak FROM challenge_log WHERE user_id = ? AND guild_id = ? AND completed = 1 ORDER BY challenge_date DESC LIMIT 1'
+      ).get(userId, guildId) as { streak: number } | undefined;
+
+      const bestCard = db.prepare(
+        `SELECT item_rarity, item_name FROM gacha_inventory WHERE user_id = ? AND guild_id = ?
+         ORDER BY CASE item_rarity WHEN 'SSR' THEN 0 WHEN 'SR' THEN 1 WHEN 'R' THEN 2 ELSE 3 END LIMIT 1`
+      ).get(userId, guildId) as { item_rarity: string; item_name: string } | undefined;
+
+      const { buffer: buf, filename: previewFile } = await renderProfileCard({
+        username:     comp.user.displayName,
+        avatarUrl:    comp.user.displayAvatarURL({ size: 256, extension: 'png' }),
+        title:        null,
+        backgroundId: item.type === 'background' ? item.id : settings.background_id,
+        frameId:      item.type === 'frame'      ? item.id : settings.frame_id,
+        accentId:     item.type === 'accent'     ? item.id : settings.accent_id,
+        coins:        eco.balance,
+        streak:       streakRow?.streak ?? 0,
+        totalRolls:   Gacha.getTotalRolls(userId, guildId),
+        bestCard:     bestCard ? `${bestCard.item_name} (${bestCard.item_rarity})` : null,
+        badges:       Achievement.getUserAchievements(userId, guildId),
+      });
+
+      files.push(new AttachmentBuilder(buf, { name: previewFile }));
+      embed.setImage(`attachment://${previewFile}`);
+    } catch {
+      embed.setFooter({ text: '⚠️ Không thể render preview hình ảnh' });
+    }
+  }
+
+  if (alreadyOwned) {
+    await comp.editReply({ embeds: [embed], files });
+    return;
+  }
+
+  const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`confirm_buy_${itemId}`)
+      .setLabel('Mua ngay')
+      .setEmoji('🛒')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('preview_cancel')
+      .setLabel('Hủy')
+      .setStyle(ButtonStyle.Secondary),
+  );
+
+  await comp.editReply({ embeds: [embed], components: [btnRow], files });
+
+  const previewMsg  = await comp.fetchReply();
+  const btnCollector = previewMsg.createMessageComponentCollector({ time: 60_000 });
+
+  btnCollector.on('collect', async btn => {
+    btnCollector.stop();
+
+    if (btn.customId === 'preview_cancel') {
+      await btn.update({ embeds: [new EmbedBuilder().setColor(COLOR.INFO).setDescription('Đã hủy.')], components: [], files: [] });
+      return;
+    }
+
+    const result = Profile.buyCosmetic(btn.user.id, guildId, itemId);
+    if (!result.success) {
+      await btn.update({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription(`❌ ${result.error}`)], components: [], files: [] });
+      return;
+    }
+
+    const updatedEco = Eco.getOrCreate(btn.user.id, guildId);
+    await btn.update({
+      embeds: [new EmbedBuilder()
+        .setColor(RARITY_COLORS[item.rarity] ?? COLOR.SUCCESS)
+        .setTitle(`✅ ${item.name}`)
+        .setDescription(item.description)
+        .addFields(
+          { name: 'Loại',     value: TYPE_LABEL[item.type] ?? item.type,        inline: true },
+          { name: 'Còn lại',  value: `${formatCoins(updatedEco.balance)} coins`, inline: true },
+        )
+        .setFooter({ text: `/profile equip item:${item.id}` })],
+      components: [],
+      files: [],
+    });
+  });
+
+  btnCollector.on('end', (_, reason) => {
+    if (reason === 'time') comp.editReply({ components: [] }).catch(() => {});
+  });
+}
+
+// ── Shop (+ preview & buy) ─────────────────────────────────────────
 async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
   const typeFilter = i.options.getString('type');
   const eco        = Eco.getOrCreate(i.user.id, i.guildId!);
@@ -309,49 +584,54 @@ async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
   const grouped = new Map<string, string[]>();
   for (const item of sorted) {
     if (!grouped.has(item.type)) grouped.set(item.type, []);
-    const have  = owned.has(item.id) ? ' ✅' : '';
-    const afford = eco.balance >= item.price ? '' : ' *(không đủ tiền)*';
+    const have   = owned.has(item.id) ? ' ✅' : '';
+    const afford = eco.balance >= item.price ? '' : ' ~~' + formatCoins(item.price) + '~~';
     grouped.get(item.type)!.push(
-      `${RARITY_EMOJI[item.rarity]} **${item.name}** — \`${formatCoins(item.price)}\` coins${have}${afford}\n └ ${item.description} · ID: \`${item.id}\``
+      `${RARITY_EMOJI[item.rarity]} **${item.name}**${have} — ${afford || formatCoins(item.price) + ' coins'}`
     );
   }
 
   const embed = new EmbedBuilder()
     .setColor(COLOR.INFO)
     .setTitle('🛍️ Profile Cosmetic Shop')
-    .setDescription(`Ví: **${formatCoins(eco.balance)} coins** · Dùng \`/profile buy <id>\` để mua`)
-    .setFooter({ text: '✅ = đã sở hữu · Mua là unlock vĩnh viễn!' });
+    .setDescription(`Ví: **${formatCoins(eco.balance)} coins**`)
+    .setFooter({ text: '✅ đã sở hữu · Chọn item để xem trước' });
 
   for (const [type, lines] of grouped) {
     embed.addFields({ name: TYPE_LABEL[type] ?? type, value: lines.join('\n') });
   }
 
-  await i.reply({ embeds: [embed] });
-}
-
-// ── Buy ────────────────────────────────────────────────────────────
-async function handleBuy(i: ChatInputCommandInteraction): Promise<void> {
-  const itemId = i.options.getString('item', true).trim();
-  const result = Profile.buyCosmetic(i.user.id, i.guildId!, itemId);
-
-  if (!result.success) {
-    await i.reply({
-      embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription(`❌ ${result.error}`)],
-      ephemeral: true,
-    });
+  // All items in select for preview (cap at 25)
+  const previewable = sorted.slice(0, 25);
+  if (previewable.length === 0) {
+    await i.reply({ embeds: [embed] });
     return;
   }
 
-  const item    = result.item!;
-  const eco     = Eco.getOrCreate(i.user.id, i.guildId!);
-  await i.reply({
-    embeds: [new EmbedBuilder()
-      .setColor(RARITY_COLORS[item.rarity] ?? COLOR.SUCCESS)
-      .setTitle('🎉 Mua thành công!')
-      .setDescription(
-        `${RARITY_EMOJI[item.rarity]} **${item.name}** (${item.type})\n${item.description}\n\n` +
-        `Dùng \`/profile equip item:${item.id}\` để trang bị.`
-      )
-      .addFields({ name: '👛 Còn lại', value: `${formatCoins(eco.balance)} coins`, inline: true })],
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('shop_preview')
+    .setPlaceholder('🔍 Chọn item để xem trước...')
+    .addOptions(
+      previewable.map(item => ({
+        label: `${owned.has(item.id) ? '✅ ' : ''}${item.name} — ${formatCoins(item.price)} coins`,
+        value: item.id,
+        description: `${item.rarity} · ${TYPE_LABEL[item.type] ?? item.type}`,
+        emoji: RARITY_EMOJI[item.rarity],
+      })),
+    );
+
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+  await i.reply({ embeds: [embed], components: [row] });
+  const msg = await i.fetchReply();
+
+  const collector = msg.createMessageComponentCollector({ time: 120_000 });
+
+  collector.on('collect', async comp => {
+    if (comp.customId !== 'shop_preview') return;
+    await previewCosmetic(comp as import('discord.js').StringSelectMenuInteraction, i.guildId!);
+  });
+
+  collector.on('end', () => {
+    i.editReply({ components: [] }).catch(() => {});
   });
 }

@@ -164,14 +164,14 @@ async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
   const embed = new EmbedBuilder()
     .setColor(COLOR.INFO)
     .setTitle('🛒 Shop')
-    .setDescription(`Ví của bạn: **${formatCoins(user.balance)} coins** | Dùng \`/eco buy <id>\` để mua`)
-    .setFooter({ text: 'Role màu & huy hiệu: liên hệ admin để nhận sau khi mua' });
+    .setDescription(`Ví: **${formatCoins(user.balance)} coins**`)
+    .setFooter({ text: '/eco buy <id> để mua · Role/huy hiệu: liên hệ admin sau khi mua' });
 
   for (const [cat, items] of grouped) {
     const lines = items.map(it =>
-      `${it.emoji} **${it.name}** — \`${formatCoins(it.price)}\` coins\n└ ${it.description} · ID: \`${it.id}\``
+      `${it.emoji} **${it.name}** — ${formatCoins(it.price)} coins · \`${it.id}\`\n${it.description}`
     );
-    embed.addFields({ name: CATEGORY_LABEL[cat] ?? cat, value: lines.join('\n') });
+    embed.addFields({ name: CATEGORY_LABEL[cat] ?? cat, value: lines.join('\n\n') });
   }
 
   await i.reply({ embeds: [embed] });
@@ -284,12 +284,9 @@ async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
   await i.reply({
     embeds: [new EmbedBuilder()
       .setColor(COLOR.SUCCESS)
-      .setTitle('💸 Chuyển tiền thành công!')
+      .setTitle('💸 Chuyển thành công')
+      .setDescription(`**${formatCoins(amount)} coins** → <@${target.id}> *(nhận ${formatCoins(received)} coins, phí ${formatCoins(tax)})*`)
       .addFields(
-        { name: '👤 Người nhận', value: `<@${target.id}>`, inline: true },
-        { name: '💰 Gửi đi', value: `**${formatCoins(amount)} coins**`, inline: true },
-        { name: '💵 Người nhận được', value: `**${formatCoins(received)} coins**`, inline: true },
-        { name: '🏦 Phí giao dịch', value: `${formatCoins(tax)} coins (5%)`, inline: true },
         { name: '👛 Còn lại', value: `${formatCoins(remaining)} coins`, inline: true },
       )
       .setTimestamp()],

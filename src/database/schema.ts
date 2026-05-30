@@ -73,6 +73,7 @@ export function initDatabase(): void {
       challenge_text TEXT NOT NULL,
       completed      INTEGER DEFAULT 0,
       streak         INTEGER DEFAULT 0,
+      used_grace     INTEGER DEFAULT 0,
       PRIMARY KEY (user_id, guild_id, challenge_date)
     );
 
