@@ -171,7 +171,6 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
         name: '📊 Stats',
         value: [
           `🔥 Streak: **${streak} ngày**`,
-          `🎴 Gacha Rolls: **${total}**`,
           bestCard ? `Best Card: ${bestCard.item_emoji} **${bestCard.item_name}** (${bestCard.item_rarity})` : null,
         ].filter(Boolean).join('  ·  '),
         inline: false,
