@@ -379,10 +379,7 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
     settings.accent_id, settings.sticker_id, settings.name_style_id,
   ].filter(Boolean) as string[]);
 
-  const embed = new EmbedBuilder()
-    .setColor(COLOR.PRIMARY)
-    .setTitle(`🗄️ Kho cosmetic — ${i.user.displayName}`)
-    .setFooter({ text: '✅ đang trang bị · /profile equip <id>' });
+  let desc = '';
 
   if (owned.length > 0) {
     const grouped = new Map<string, string[]>();
@@ -392,23 +389,28 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
       if (!grouped.has(item.type)) grouped.set(item.type, []);
       const eq     = equipped.has(o.cosmetic_id) ? ' ✅' : '';
       const expiry = o.expires_at ? ` · hết ${new Date(o.expires_at).toLocaleDateString('vi-VN')}` : '';
-      grouped.get(item.type)!.push(`${RARITY_EMOJI[item.rarity]} **${item.name}**${eq}${expiry} · \`${item.id}\``);
+      grouped.get(item.type)!.push(` - ${RARITY_EMOJI[item.rarity]} **${item.name}**${eq}${expiry} · \`${item.id}\``);
     }
     for (const [type, lines] of grouped) {
-      embed.addFields({ name: TYPE_LABEL[type] ?? type, value: lines.join('\n') });
+      desc += `## ${TYPE_LABEL[type] ?? type}\n${lines.join('\n')}\n\n`;
     }
   } else {
-    embed.setDescription('*Chưa có cosmetic nào. Dùng `/profile shop` để mua!*');
+    desc = '*Chưa có cosmetic nào. Dùng `/profile shop` để mua!*';
   }
 
   if (tier > 0) {
-    embed.addFields({
-      name: '🎨 Role Màu Booster',
-      value: tier >= 2
-        ? 'Đã mở **Color Pack - Booster Gốc** và **Color Pack - Booster I**. Chọn màu từ menu bên dưới.'
-        : 'Đã mở **Color Pack - Booster Gốc**. Chọn màu từ menu bên dưới.',
-    });
+    const packInfo = tier >= 2
+      ? 'Color Pack - Booster Gốc & Booster I'
+      : 'Color Pack - Booster Gốc';
+    desc += `## 🎨 Role Màu\n - Đã mở **${packInfo}** — chọn màu từ menu bên dưới`;
   }
+
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.PRIMARY)
+    .setTitle(`🗄️ Kho — ${i.user.displayName}`)
+    .setDescription(desc.trim())
+    .setThumbnail(i.user.displayAvatarURL())
+    .setFooter({ text: '✅ đang trang bị · /profile equip <id>' });
 
   await i.reply({ embeds: [embed], components: boosterRows, ephemeral: true });
 
@@ -438,13 +440,14 @@ async function handleAchievements(i: ChatInputCommandInteraction): Promise<void>
 
   const lines = all.map(a => {
     const have = earned.has(a.id);
-    return `${have ? a.emoji : '🔒'} **${a.name}**${have ? '' : ' *(chưa mở)*'}\n └ ${a.description}`;
+    return ` - ${have ? a.emoji : '🔒'} **${a.name}**${have ? '' : ' *(chưa mở)*'}\n   *${a.description}*`;
   });
 
   const embed = new EmbedBuilder()
     .setColor(COLOR.INFO)
     .setTitle(`🏅 Achievements — ${i.user.displayName}`)
     .setDescription(lines.join('\n'))
+    .setThumbnail(i.user.displayAvatarURL())
     .setFooter({ text: `${earned.size} / ${all.length} thành tích đã mở khóa` });
 
   await i.reply({ embeds: [embed], ephemeral: true });
@@ -585,21 +588,22 @@ async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
   for (const item of sorted) {
     if (!grouped.has(item.type)) grouped.set(item.type, []);
     const have   = owned.has(item.id) ? ' ✅' : '';
-    const afford = eco.balance >= item.price ? '' : ' ~~' + formatCoins(item.price) + '~~';
-    grouped.get(item.type)!.push(
-      `${RARITY_EMOJI[item.rarity]} **${item.name}**${have} — ${afford || formatCoins(item.price) + ' coins'}`
-    );
+    const canBuy = eco.balance >= item.price;
+    const price  = canBuy ? `${formatCoins(item.price)} coins` : `~~${formatCoins(item.price)} coins~~`;
+    grouped.get(item.type)!.push(` - ${RARITY_EMOJI[item.rarity]} **${item.name}**${have} — ${price}`);
+  }
+
+  let shopDesc = `Ví: **${formatCoins(eco.balance)} coins**\n\n`;
+  for (const [type, lines] of grouped) {
+    shopDesc += `## ${TYPE_LABEL[type] ?? type}\n${lines.join('\n')}\n\n`;
   }
 
   const embed = new EmbedBuilder()
     .setColor(COLOR.INFO)
     .setTitle('🛍️ Profile Cosmetic Shop')
-    .setDescription(`Ví: **${formatCoins(eco.balance)} coins**`)
+    .setDescription(shopDesc.trim())
+    .setThumbnail(i.client.user?.displayAvatarURL() ?? null)
     .setFooter({ text: '✅ đã sở hữu · Chọn item để xem trước' });
-
-  for (const [type, lines] of grouped) {
-    embed.addFields({ name: TYPE_LABEL[type] ?? type, value: lines.join('\n') });
-  }
 
   // All items in select for preview (cap at 25)
   const previewable = sorted.slice(0, 25);

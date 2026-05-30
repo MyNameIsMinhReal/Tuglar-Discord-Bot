@@ -161,18 +161,22 @@ async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
     list.push(item);
   }
 
+  let shopDesc = `Ví: **${formatCoins(user.balance)} coins**\n\n`;
+  for (const [cat, items] of grouped) {
+    shopDesc += `## ${CATEGORY_LABEL[cat] ?? cat}\n`;
+    for (const it of items) {
+      shopDesc += ` - ${it.emoji} **${it.name}** — ${formatCoins(it.price)} coins · \`${it.id}\`\n`;
+      shopDesc += `   *${it.description}*\n`;
+    }
+    shopDesc += '\n';
+  }
+
   const embed = new EmbedBuilder()
     .setColor(COLOR.INFO)
     .setTitle('🛒 Shop')
-    .setDescription(`Ví: **${formatCoins(user.balance)} coins**`)
+    .setDescription(shopDesc.trim())
+    .setThumbnail(i.client.user?.displayAvatarURL() ?? null)
     .setFooter({ text: '/eco buy <id> để mua · Role/huy hiệu: liên hệ admin sau khi mua' });
-
-  for (const [cat, items] of grouped) {
-    const lines = items.map(it =>
-      `${it.emoji} **${it.name}** — ${formatCoins(it.price)} coins · \`${it.id}\`\n${it.description}`
-    );
-    embed.addFields({ name: CATEGORY_LABEL[cat] ?? cat, value: lines.join('\n\n') });
-  }
 
   await i.reply({ embeds: [embed] });
 }

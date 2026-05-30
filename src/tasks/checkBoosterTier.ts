@@ -20,7 +20,8 @@ async function runCheck(client: Client): Promise<void> {
     try {
       await updateBoosterRole(member, logChannel);
       processed++;
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === 50013) continue; // bot role too low — skip silently
       console.error(`checkBoosterTier: error on ${member.displayName}:`, err);
     }
   }
