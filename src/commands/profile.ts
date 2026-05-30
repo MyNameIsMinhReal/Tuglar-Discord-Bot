@@ -47,68 +47,19 @@ const COLOR_PACK_2 = [
 
 export const data = new SlashCommandBuilder()
   .setName('profile')
-  .setDescription('Xem và tùy chỉnh profile của bạn')
-  .addSubcommand(sub => sub
-    .setName('view')
-    .setDescription('Xem profile — của bạn hoặc của người khác')
-    .addUserOption(o => o.setName('user').setDescription('Người dùng muốn xem (mặc định: bạn)'))
-  )
-  .addSubcommand(sub => sub
-    .setName('equip')
-    .setDescription('Trang bị cosmetic đã sở hữu')
-    .addStringOption(o => o.setName('item').setDescription('ID của item (lấy từ /profile inventory)').setRequired(true))
-  )
-  .addSubcommand(sub => sub
-    .setName('unequip')
-    .setDescription('Tháo cosmetic đang trang bị')
-    .addStringOption(o => o
-      .setName('slot')
-      .setDescription('Slot muốn tháo')
-      .setRequired(true)
-      .addChoices(
-        { name: '🖼️ Background', value: 'background' },
-        { name: '🔲 Frame', value: 'frame' },
-        { name: '🏷️ Title', value: 'title' },
-        { name: '🎨 Accent', value: 'accent' },
-        { name: '🌀 Sticker', value: 'sticker' },
-      )
-    )
-  )
-  .addSubcommand(sub => sub.setName('inventory').setDescription('Xem kho cosmetic đã sở hữu'))
-  .addSubcommand(sub => sub.setName('achievements').setDescription('Xem thành tích đã đạt được'))
-  .addSubcommand(sub => sub
-    .setName('shop')
-    .setDescription('Xem shop cosmetic')
-    .addStringOption(o => o
-      .setName('type')
-      .setDescription('Lọc theo loại (mặc định: tất cả)')
-      .setRequired(false)
-      .addChoices(
-        { name: '🏷️ Title', value: 'title' },
-        { name: '🎨 Accent', value: 'accent' },
-        { name: '🖼️ Background', value: 'background' },
-        { name: '🔲 Frame', value: 'frame' },
-      )
-    )
-  );
+  .setDescription('Xem profile của bạn hoặc người khác')
+  .addUserOption(o => o.setName('user').setDescription('Người dùng muốn xem (mặc định: bạn)'));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  const sub = interaction.options.getSubcommand();
-  switch (sub) {
-    case 'view':         return handleView(interaction);
-    case 'equip':        return handleEquip(interaction);
-    case 'unequip':      return handleUnequip(interaction);
-    case 'inventory':    return handleInventory(interaction);
-    case 'achievements': return handleAchievements(interaction);
-    case 'shop':         return handleShop(interaction);
-  }
+  return handleView(interaction);
 }
 
 // ── View ───────────────────────────────────────────────────────────
 async function handleView(i: ChatInputCommandInteraction): Promise<void> {
   await i.deferReply();
 
-  const target: User = i.options.getUser('user') ?? i.user;
+  const target: User   = i.options.getUser('user') ?? i.user;
+  const isOwn: boolean = target.id === i.user.id;
   const guildId = i.guildId!;
 
   const eco      = Eco.getOrCreate(target.id, guildId);
@@ -186,7 +137,14 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
     embed.addFields({ name: '🎨 Profile Cosmetics', value: cosmeticLines.join('\n'), inline: false });
   }
 
-  embed.setFooter({ text: `Dùng /profile equip để trang bị cosmetics · /profile shop để mua` });
+  const navRow = isOwn
+    ? new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId('prof_inv').setLabel('🗄️ Kho').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('prof_shop').setLabel('🛍️ Shop').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('prof_ach').setLabel('🏅 Thành tích').setStyle(ButtonStyle.Secondary),
+      )
+    : null;
+  const components = navRow ? [navRow] : [];
 
   // Try canvas card — attach as image if successful, fallback to thumbnail
   try {
@@ -205,49 +163,28 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
     });
     const attachment = new AttachmentBuilder(cardBuf, { name: cardFile });
     embed.setImage(`attachment://${cardFile}`);
-    await i.editReply({ embeds: [embed], files: [attachment] });
+    await i.editReply({ embeds: [embed], files: [attachment], components });
   } catch {
     embed.setThumbnail(target.displayAvatarURL({ size: 256 }));
-    await i.editReply({ embeds: [embed] });
-  }
-}
-
-// ── Equip ──────────────────────────────────────────────────────────
-async function handleEquip(i: ChatInputCommandInteraction): Promise<void> {
-  const itemId = i.options.getString('item', true).trim();
-  const result = Profile.equipCosmetic(i.user.id, i.guildId!, itemId);
-
-  if (!result.success) {
-    await i.reply({
-      embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription(`❌ ${result.error}`)],
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
+    await i.editReply({ embeds: [embed], components });
   }
 
-  const item = result.item!;
-  await i.reply({
-    embeds: [new EmbedBuilder()
-      .setColor(COLOR.SUCCESS)
-      .setTitle('✅ Trang bị thành công!')
-      .setDescription(`${TYPE_LABEL[item.type] ?? item.type}: **${item.name}** đã được trang bị.\nXem profile với \`/profile view\`.`)],
-    flags: MessageFlags.Ephemeral,
+  if (!navRow) return;
+
+  const msg = await i.fetchReply();
+  const collector = msg.createMessageComponentCollector({
+    filter: c => c.user.id === i.user.id,
+    time: 300_000,
   });
-}
 
-// ── Unequip ────────────────────────────────────────────────────────
-async function handleUnequip(i: ChatInputCommandInteraction): Promise<void> {
-  const slot = i.options.getString('slot', true);
-  const ok = Profile.unequipSlot(i.user.id, i.guildId!, slot);
-
-  if (!ok) {
-    await i.reply({ content: `❌ Slot \`${slot}\` không hợp lệ.`, flags: MessageFlags.Ephemeral });
-    return;
-  }
-  await i.reply({
-    embeds: [new EmbedBuilder().setColor(COLOR.INFO).setDescription(`🔲 Đã tháo ${TYPE_LABEL[slot] ?? slot}.`)],
-    flags: MessageFlags.Ephemeral,
+  collector.on('collect', async btn => {
+    const guild = i.guild!;
+    if (btn.customId === 'prof_inv')  await showInventory(btn as MessageComponentInteraction, guild);
+    else if (btn.customId === 'prof_shop') await showShop(btn as MessageComponentInteraction, guild);
+    else if (btn.customId === 'prof_ach')  await showAchievements(btn as MessageComponentInteraction);
   });
+
+  collector.on('end', () => { i.editReply({ components: [] }).catch(() => {}); });
 }
 
 // ── Booster Role Helpers ───────────────────────────────────────────
@@ -354,21 +291,19 @@ async function applyColorRole(
 }
 
 // ── Inventory ──────────────────────────────────────────────────────
-async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
-  const guild    = i.guild!;
-  const owned    = Profile.getOwned(i.user.id, i.guildId!);
-  const settings = Profile.getSettings(i.user.id, i.guildId!);
+async function showInventory(btn: MessageComponentInteraction, guild: import('discord.js').Guild): Promise<void> {
+  const userId   = btn.user.id;
+  const guildId  = btn.guildId!;
+  const owned    = Profile.getOwned(userId, guildId);
+  const settings = Profile.getSettings(userId, guildId);
 
-  const member = guild.members.cache.get(i.user.id)
-    ?? await guild.members.fetch(i.user.id).catch(() => null);
+  const member = guild.members.cache.get(userId)
+    ?? await guild.members.fetch(userId).catch(() => null);
   const tier = member ? getUserTier(member) : 0;
-  const boosterRows = buildBoosterRows(tier);
 
   if (owned.length === 0 && tier === 0) {
-    await i.reply({
-      embeds: [new EmbedBuilder()
-        .setColor(COLOR.INFO)
-        .setDescription('Kho trống. Dùng `/profile shop` để xem và mua cosmetics!')],
+    await btn.reply({
+      embeds: [new EmbedBuilder().setColor(COLOR.INFO).setDescription('Kho trống. Bấm **Shop** để xem và mua cosmetics!')],
       flags: MessageFlags.Ephemeral,
     });
     return;
@@ -380,7 +315,6 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
   ].filter(Boolean) as string[]);
 
   let desc = '';
-
   if (owned.length > 0) {
     const grouped = new Map<string, string[]>();
     for (const o of owned) {
@@ -395,48 +329,100 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
       desc += `## ${TYPE_LABEL[type] ?? type}\n${lines.join('\n')}\n\n`;
     }
   } else {
-    desc = '*Chưa có cosmetic nào. Dùng `/profile shop` để mua!*';
+    desc = '*Chưa có cosmetic nào.*';
   }
 
   if (tier > 0) {
-    const packInfo = tier >= 2
-      ? 'Color Pack - Booster Gốc & Booster I'
-      : 'Color Pack - Booster Gốc';
+    const packInfo = tier >= 2 ? 'Color Pack - Booster Gốc & Booster I' : 'Color Pack - Booster Gốc';
     desc += `## 🎨 Role Màu\n - Đã mở **${packInfo}** — chọn màu từ menu bên dưới`;
   }
 
   const embed = new EmbedBuilder()
     .setColor(COLOR.PRIMARY)
-    .setTitle(`🗄️ Kho — ${i.user.displayName}`)
+    .setTitle('🗄️ Kho')
     .setDescription(desc.trim())
-    .setThumbnail(i.user.displayAvatarURL())
-    .setFooter({ text: '✅ đang trang bị · /profile equip <id>' });
+    .setThumbnail(btn.user.displayAvatarURL())
+    .setFooter({ text: '✅ đang trang bị' });
 
-  await i.reply({ embeds: [embed], components: boosterRows, flags: MessageFlags.Ephemeral });
+  // ── Equip / Unequip selects ──────────────────────────────────────
+  const rows: ActionRowBuilder<any>[] = [];
 
-  if (boosterRows.length === 0) return;
+  if (owned.length > 0) {
+    const equipOpts = owned
+      .map(o => {
+        const item = Profile.getById(o.cosmetic_id);
+        if (!item) return null;
+        return {
+          label: `${item.name} ${equipped.has(o.cosmetic_id) ? '✅' : ''}`.trim(),
+          value: o.cosmetic_id,
+          description: `${TYPE_LABEL[item.type] ?? item.type} · ${item.rarity}`,
+          emoji: RARITY_EMOJI[item.rarity],
+        };
+      })
+      .filter((o): o is NonNullable<typeof o> => o !== null)
+      .slice(0, 25);
 
-  const msg = await i.fetchReply();
+    rows.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+      new StringSelectMenuBuilder().setCustomId('inv_equip').setPlaceholder('Trang bị item...').addOptions(equipOpts),
+    ));
+
+    const unequipOpts: { label: string; value: string }[] = [];
+    if (settings.background_id) unequipOpts.push({ label: `Tháo ${TYPE_LABEL.background}`, value: 'background' });
+    if (settings.frame_id)      unequipOpts.push({ label: `Tháo ${TYPE_LABEL.frame}`,      value: 'frame' });
+    if (settings.title_id)      unequipOpts.push({ label: `Tháo ${TYPE_LABEL.title}`,      value: 'title' });
+    if (settings.accent_id)     unequipOpts.push({ label: `Tháo ${TYPE_LABEL.accent}`,     value: 'accent' });
+    if (settings.sticker_id)    unequipOpts.push({ label: `Tháo ${TYPE_LABEL.sticker}`,    value: 'sticker' });
+
+    if (unequipOpts.length > 0) {
+      rows.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder().setCustomId('inv_unequip').setPlaceholder('Tháo cosmetic...').addOptions(unequipOpts),
+      ));
+    }
+  }
+
+  // Add booster rows (cap total at 5)
+  rows.push(...buildBoosterRows(tier));
+  const finalRows = rows.slice(0, 5);
+
+  await btn.reply({ embeds: [embed], components: finalRows, flags: MessageFlags.Ephemeral });
+
+  if (finalRows.length === 0) return;
+
+  const msg = await btn.fetchReply();
   const collector = msg.createMessageComponentCollector({ time: 300_000 });
 
   collector.on('collect', async comp => {
-    if (comp.customId === 'booster_pack1' || comp.customId === 'booster_pack2') {
+    if (comp.customId === 'inv_equip') {
+      const sel    = comp as import('discord.js').StringSelectMenuInteraction;
+      const result = Profile.equipCosmetic(userId, guildId, sel.values[0]);
+      await comp.reply({
+        embeds: [new EmbedBuilder()
+          .setColor(result.success ? COLOR.SUCCESS : COLOR.DANGER)
+          .setDescription(result.success ? `✅ Đã trang bị **${result.item?.name}**` : `❌ ${result.error}`)],
+        flags: MessageFlags.Ephemeral,
+      });
+    } else if (comp.customId === 'inv_unequip') {
       const sel = comp as import('discord.js').StringSelectMenuInteraction;
-      await applyColorRole(sel, guild, i.user.id, sel.values[0]);
+      Profile.unequipSlot(userId, guildId, sel.values[0]);
+      await comp.reply({
+        embeds: [new EmbedBuilder().setColor(COLOR.INFO).setDescription(`🔲 Đã tháo ${TYPE_LABEL[sel.values[0]] ?? sel.values[0]}`)],
+        flags: MessageFlags.Ephemeral,
+      });
+    } else if (comp.customId === 'booster_pack1' || comp.customId === 'booster_pack2') {
+      const sel = comp as import('discord.js').StringSelectMenuInteraction;
+      await applyColorRole(sel, guild, userId, sel.values[0]);
     } else if (comp.customId === 'booster_clear') {
-      await applyColorRole(comp as MessageComponentInteraction, guild, i.user.id, 'clear');
+      await applyColorRole(comp as MessageComponentInteraction, guild, userId, 'clear');
     }
   });
 
-  collector.on('end', () => {
-    i.editReply({ components: [] }).catch(() => {});
-  });
+  collector.on('end', () => { btn.editReply({ components: [] }).catch(() => {}); });
 }
 
 // ── Achievements ───────────────────────────────────────────────────
-async function handleAchievements(i: ChatInputCommandInteraction): Promise<void> {
-  const all     = Achievement.getAllDefs();
-  const earned  = new Set(Achievement.getUserAchievements(i.user.id, i.guildId!).map(a => a.id));
+async function showAchievements(btn: MessageComponentInteraction): Promise<void> {
+  const all    = Achievement.getAllDefs();
+  const earned = new Set(Achievement.getUserAchievements(btn.user.id, btn.guildId!).map(a => a.id));
 
   const lines = all.map(a => {
     const have = earned.has(a.id);
@@ -445,12 +431,12 @@ async function handleAchievements(i: ChatInputCommandInteraction): Promise<void>
 
   const embed = new EmbedBuilder()
     .setColor(COLOR.INFO)
-    .setTitle(`🏅 Achievements — ${i.user.displayName}`)
+    .setTitle(`🏅 Achievements — ${btn.user.displayName}`)
     .setDescription(lines.join('\n'))
-    .setThumbnail(i.user.displayAvatarURL())
+    .setThumbnail(btn.user.displayAvatarURL())
     .setFooter({ text: `${earned.size} / ${all.length} thành tích đã mở khóa` });
 
-  await i.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+  await btn.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 // ── Preview helper ─────────────────────────────────────────────────
@@ -563,7 +549,7 @@ async function previewCosmetic(
           { name: 'Loại',     value: TYPE_LABEL[item.type] ?? item.type,        inline: true },
           { name: 'Còn lại',  value: `${formatCoins(updatedEco.balance)} coins`, inline: true },
         )
-        .setFooter({ text: `/profile equip item:${item.id}` })],
+        .setFooter({ text: `Vào 🗄️ Kho để trang bị` })],
       components: [],
       files: [],
     });
@@ -575,11 +561,12 @@ async function previewCosmetic(
 }
 
 // ── Shop (+ preview & buy) ─────────────────────────────────────────
-async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
-  const typeFilter = i.options.getString('type');
-  const eco        = Eco.getOrCreate(i.user.id, i.guildId!);
-  const items      = typeFilter ? Profile.getByType(typeFilter) : Profile.getCatalog();
-  const owned      = new Set(Profile.getOwned(i.user.id, i.guildId!).map(o => o.cosmetic_id));
+async function showShop(btn: MessageComponentInteraction, _guild: import('discord.js').Guild): Promise<void> {
+  const userId  = btn.user.id;
+  const guildId = btn.guildId!;
+  const eco     = Eco.getOrCreate(userId, guildId);
+  const items   = Profile.getCatalog();
+  const owned   = new Set(Profile.getOwned(userId, guildId).map(o => o.cosmetic_id));
 
   const RARITY_ORDER: Record<string, number> = { N: 0, R: 1, SR: 2, SSR: 3 };
   const sorted = [...items].sort((a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.price - b.price);
@@ -587,9 +574,8 @@ async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
   const grouped = new Map<string, string[]>();
   for (const item of sorted) {
     if (!grouped.has(item.type)) grouped.set(item.type, []);
-    const have   = owned.has(item.id) ? ' ✅' : '';
-    const canBuy = eco.balance >= item.price;
-    const price  = canBuy ? `${formatCoins(item.price)} coins` : `~~${formatCoins(item.price)} coins~~`;
+    const have  = owned.has(item.id) ? ' ✅' : '';
+    const price = eco.balance >= item.price ? `${formatCoins(item.price)} coins` : `~~${formatCoins(item.price)} coins~~`;
     grouped.get(item.type)!.push(` - ${RARITY_EMOJI[item.rarity]} **${item.name}**${have} — ${price}`);
   }
 
@@ -602,40 +588,32 @@ async function handleShop(i: ChatInputCommandInteraction): Promise<void> {
     .setColor(COLOR.INFO)
     .setTitle('🛍️ Profile Cosmetic Shop')
     .setDescription(shopDesc.trim())
-    .setThumbnail(i.client.user?.displayAvatarURL() ?? null)
+    .setThumbnail(btn.client.user?.displayAvatarURL() ?? null)
     .setFooter({ text: '✅ đã sở hữu · Chọn item để xem trước' });
 
-  // All items in select for preview (cap at 25)
   const previewable = sorted.slice(0, 25);
   if (previewable.length === 0) {
-    await i.reply({ embeds: [embed] });
+    await btn.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     return;
   }
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId('shop_preview')
     .setPlaceholder('🔍 Chọn item để xem trước...')
-    .addOptions(
-      previewable.map(item => ({
-        label: `${owned.has(item.id) ? '✅ ' : ''}${item.name} — ${formatCoins(item.price)} coins`,
-        value: item.id,
-        description: `${item.rarity} · ${TYPE_LABEL[item.type] ?? item.type}`,
-        emoji: RARITY_EMOJI[item.rarity],
-      })),
-    );
+    .addOptions(previewable.map(item => ({
+      label: `${owned.has(item.id) ? '✅ ' : ''}${item.name} — ${formatCoins(item.price)} coins`,
+      value: item.id,
+      description: `${item.rarity} · ${TYPE_LABEL[item.type] ?? item.type}`,
+      emoji: RARITY_EMOJI[item.rarity],
+    })));
 
-  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
-  await i.reply({ embeds: [embed], components: [row] });
-  const msg = await i.fetchReply();
+  await btn.reply({ embeds: [embed], components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)], flags: MessageFlags.Ephemeral });
+  const msg = await btn.fetchReply();
 
   const collector = msg.createMessageComponentCollector({ time: 120_000 });
-
   collector.on('collect', async comp => {
     if (comp.customId !== 'shop_preview') return;
-    await previewCosmetic(comp as import('discord.js').StringSelectMenuInteraction, i.guildId!);
+    await previewCosmetic(comp as import('discord.js').StringSelectMenuInteraction, guildId);
   });
-
-  collector.on('end', () => {
-    i.editReply({ components: [] }).catch(() => {});
-  });
+  collector.on('end', () => { btn.editReply({ components: [] }).catch(() => {}); });
 }
