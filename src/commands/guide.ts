@@ -8,7 +8,7 @@ import {
 } from '../services/BoosterService';
 
 export const data = new SlashCommandBuilder()
-  .setName('index')
+  .setName('guide')
   .setDescription('Sổ tay Role Đảo Tuglar (hoặc tra cứu role bất kỳ)')
   .addRoleOption(o =>
     o.setName('role')

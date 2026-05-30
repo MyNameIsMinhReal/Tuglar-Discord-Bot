@@ -15,7 +15,7 @@ try {
 
 export const data = new SlashCommandBuilder()
   .setName('eco')
-  .setDescription('Hệ thống coins')
+  .setDescription('💰 Quản lý tiền tệ, cửa hàng và bảng xếp hạng')
   .addSubcommand(sub => sub.setName('daily').setDescription('Nhận coins hàng ngày'))
   .addSubcommand(sub => sub.setName('balance').setDescription('Xem số dư'))
   .addSubcommand(sub => sub
@@ -39,7 +39,7 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand(sub => sub
     .setName('pay')
-    .setDescription('Chuyển coins (5% phí, tối đa 500 coins/ngày)')
+    .setDescription('💸 Chuyển coins cho người khác (Phí 5%, Max 500)')
     .addUserOption(o => o.setName('user').setDescription('Người nhận').setRequired(true))
     .addIntegerOption(o => o.setName('amount').setDescription('Số coins').setRequired(true).setMinValue(1))
   );

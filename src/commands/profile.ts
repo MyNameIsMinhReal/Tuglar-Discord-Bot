@@ -47,7 +47,7 @@ const COLOR_PACK_2 = [
 
 export const data = new SlashCommandBuilder()
   .setName('profile')
-  .setDescription('Xem profile của bạn hoặc người khác')
+  .setDescription('👤 Xem hồ sơ cá nhân, kho trang trí & thẻ bài')
   .addUserOption(o => o.setName('user').setDescription('Người dùng muốn xem (mặc định: bạn)'));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {

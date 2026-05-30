@@ -1,5 +1,4 @@
 import { Client, ActivityType } from 'discord.js';
-import { startDeadlineChecker } from '../services/DeadlineService';
 import { startCheckBoosterTierTask } from '../tasks/checkBoosterTier';
 
 export const name = 'clientReady';
@@ -12,13 +11,12 @@ export async function execute(client: Client): Promise<void> {
   // Set bot activity
   client.user?.setPresence({
     activities: [{
-      name: '/help | 📚 Study Bot',
+      name: '/guide | 📘 Sổ tay Server',
       type: ActivityType.Watching,
     }],
     status: 'online',
   });
 
-  // Khởi động deadline checker
-  startDeadlineChecker(client);
+  // Chỉ còn giữ lại task Booster
   startCheckBoosterTierTask(client);
 }

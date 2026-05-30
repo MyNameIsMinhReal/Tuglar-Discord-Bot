@@ -34,7 +34,7 @@ const PACK_COSTS: Record<number, number> = Object.fromEntries(
 // ── Command Definition (ĐÃ XÓA SUBCOMMAND INVENTORY) ──────────────────
 export const data = new SlashCommandBuilder()
   .setName('gacha')
-  .setDescription('Roll nhân vật Solo Leveling')
+  .setDescription('🎰 Gacha thẻ bài nhân vật Solo Leveling')
   .addSubcommand(sub => sub
     .setName('pack')
     .setDescription('Mở pack nhân vật có animation — chọn số lá')

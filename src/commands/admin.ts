@@ -14,15 +14,12 @@ const PROTECTED = new Set(['admin']);
 
 const ALL_COMMANDS = [
   { name: '/ai',        value: 'ai' },
-  { name: '/deadline',  value: 'deadline' },
   { name: '/eco',       value: 'eco' },
   { name: '/gacha',     value: 'gacha' },
   { name: '/game',      value: 'game' },
-  { name: '/challenge', value: 'challenge' },
-  { name: '/journal',   value: 'journal' },
   { name: '/docs',      value: 'docs' },
   { name: '/profile',   value: 'profile' },
-  { name: '/index',     value: 'index' },
+  { name: '/guide',     value: 'guide' }, // Đã đổi tên
 ];
 
 export const data = new SlashCommandBuilder()

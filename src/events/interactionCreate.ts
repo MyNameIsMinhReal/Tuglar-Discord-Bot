@@ -1,17 +1,13 @@
 import { Interaction, EmbedBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { COLOR } from '../utils/embeds';
-import { handleApprove, handleDeny } from '../commands/challenge';
 import { db } from '../database';
 
 export const name = 'interactionCreate';
 export const once = false;
 
 export async function execute(interaction: Interaction): Promise<void> {
-  if (interaction.isButton()) {
-    if (interaction.customId.startsWith('ch_approve:')) return handleApprove(interaction);
-    if (interaction.customId.startsWith('ch_deny:')) return handleDeny(interaction);
-    return;
-  }
+  // Bỏ qua các tương tác Nút bấm độc lập chưa có handler
+  if (interaction.isButton()) return;
 
   if (!interaction.isChatInputCommand()) return;
 
