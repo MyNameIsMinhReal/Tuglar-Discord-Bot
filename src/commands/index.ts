@@ -125,43 +125,43 @@ function buildPages(count: (id: string) => number): string[] {
  - Các role này thường chỉ xuất hiện **1 lần duy nhất** với các sự kiện để đánh dấu lại cột mốc thời gian bạn đã đồng hành cùng với server.`,
 
     `# 🎉 Event Role (Trang 1)
-## <@&1466299698800365695> <:tet2026:1510063136831705270>
+## <@&1466299698800365695> <:tet2026:1510158347494621254>
  - Ra mắt: <t:1771200240:D>
  - Cách nhận: **Chat trong server trong thời gian diễn ra Sự kiện Tết Bính Ngọ 2026**
  - Sở hữu: \`${count('1466299698800365695')}\`
-## <@&1274907870701424755> <:trungthu2024:1510063138970800219>
+## <@&1274907870701424755> <:trungthu2024:1510158349604491365>
  - Ra mắt: <t:1724112240:D>
  - Cách nhận: **Thu thập nguyên liệu làm Bánh Trung Thu 🥮 tại Sự kiện Tết Trung Thu 2024**
  - Sở hữu: \`${count('1274907870701424755')}\`
-## <@&1240597343049486397> <:2anni:1510063188543275118>
+## <@&1240597343049486397> <:2anni:1510158341702418452>
  - Ra mắt: <t:1720483440:D>
  - Cách nhận: **Gửi lời chúc mừng sinh nhật server tròn 2 tuổi**
  - Sở hữu: \`${count('1240597343049486397')}\``,
 
     `# 🎉 Event Role (Trang 2)
-## <@&1189375452603756645> <:tet2024:1510063134415650946>
+## <@&1189375452603756645> <:tet2024:1510158345640738919>
  - Ra mắt: <t:1706720400:D>
  - Cách nhận: **Đổi mảnh 🧩 tại Sự kiện Trang trí Tết Giáp Thìn 2024**
  - Sở hữu: \`${count('1189375452603756645')}\`
-## <@&1157198996234842143> <:1anni:1510063186429083648>
+## <@&1157198996234842143> <:1anni:1510158339651141703>
  - Ra mắt: <t:1688861040:D>
  - Cách nhận: **Tham gia SK SN 1 Tuổi Đảo Tuglar**
  - Sở hữu: \`${count('1157198996234842143')}\`
-## <@&1169623255297032272> <:winterlands2023:1510063146583199994>
+## <@&1169623255297032272> <:winterlands2023:1510158354192793621>
  - Ra mắt: <t:1698771600:D>
  - Cách nhận: **Tưới cây thông noel 🎄 trong thời gian diễn ra Sự kiện Winterlands 2023**
  - Sở hữu: \`${count('1169623255297032272')}\``,
 
     `# ⚜️ Special Role
-## <@&1346173590642622528> <:DaoTuglarClanOld:1510063131584626688>
+## <@&1346173590642622528> <:DaoTuglarClanOld:1510158343426015273>
  - Ra mắt: <t:1688835600:D>
  - Cách nhận: **Tham gia Quân đoàn Free Fire Đảo Tuglar**
  - Sở hữu: \`${count('1346173590642622528')}\`
-## <@&1175019718466359306> <:TuglarPars:1510063144532316242>
+## <@&1175019718466359306> <:TuglarPar2:1510158351869284423>
  - Ra mắt: Chưa cập nhật
  - Cách nhận: **Tham gia Clan Liên Quân TuglarPars**
  - Sở hữu: \`${count('1175019718466359306')}\`
-## <@&1113018418300452894> <:TuglarPars:1510063144532316242>
+## <@&1113018418300452894> <:ClubPar:1510164389288874035>
  - Ra mắt: Chưa cập nhật
  - Cách nhận: **Tham gia CLB Par.**
  - Sở hữu: \`${count('1113018418300452894')}\``,

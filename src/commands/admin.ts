@@ -31,91 +31,119 @@ export const data = new SlashCommandBuilder()
   .setName('admin')
   .setDescription('[Admin] Quản lý bot')
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-  .addSubcommand(sub => sub
-    .setName('disable')
-    .setDescription('Tắt một lệnh — người thường sẽ không dùng được')
-    .addStringOption(o => o
-      .setName('command')
-      .setDescription('Tên lệnh cần tắt')
-      .setRequired(true)
-      .addChoices(...ALL_COMMANDS)
-    )
-  )
-  .addSubcommand(sub => sub
-    .setName('enable')
-    .setDescription('Bật lại một lệnh đã tắt')
-    .addStringOption(o => o
-      .setName('command')
-      .setDescription('Tên lệnh cần bật lại')
-      .setRequired(true)
-      .addChoices(...ALL_COMMANDS)
-    )
-  )
-  .addSubcommand(sub => sub.setName('list').setDescription('Xem trạng thái bật/tắt của tất cả lệnh'))
-  // ── Economy Admin ──────────────────────────────────────────────────
-  .addSubcommand(sub => sub
-    .setName('eco_give')
-    .setDescription('[Admin] Tặng coins cho người dùng')
-    .addUserOption(o => o.setName('user').setDescription('Người nhận').setRequired(true))
-    .addIntegerOption(o => o.setName('amount').setDescription('Số coins').setRequired(true).setMinValue(1))
-    .addStringOption(o => o.setName('reason').setDescription('Lý do'))
-  )
-  .addSubcommand(sub => sub
-    .setName('eco_take')
-    .setDescription('[Admin] Trừ coins của người dùng')
-    .addUserOption(o => o.setName('user').setDescription('Người bị trừ').setRequired(true))
-    .addIntegerOption(o => o.setName('amount').setDescription('Số coins').setRequired(true).setMinValue(1))
-    .addStringOption(o => o.setName('reason').setDescription('Lý do'))
-  )
-  .addSubcommand(sub => sub
-    .setName('eco_history')
-    .setDescription('[Admin] Xem lịch sử giao dịch của người dùng')
-    .addUserOption(o => o.setName('user').setDescription('Người dùng cần kiểm tra').setRequired(true))
-  )
-  .addSubcommand(sub => sub
-    .setName('eco_stats')
-    .setDescription('[Admin] Thống kê economy toàn server')
-  )
-  // ── Season ─────────────────────────────────────────────────────────
-  .addSubcommand(sub => sub
-    .setName('season_reset')
-    .setDescription('[Admin] Kết thúc season hiện tại — reset 50% coins, chuyển sang prestige')
-  )
-  // ── Background Upload ───────────────────────────────────────────
-  .addSubcommand(sub => sub
-    .setName('bg_upload')
-    .setDescription('[Admin] Upload ảnh nền cho background cosmetic')
-    .addStringOption(o => o
-      .setName('background')
-      .setDescription('Background cosmetic cần set ảnh')
-      .setRequired(true)
-      .addChoices(
-        { name: 'Study Room',   value: 'bg_study_room'   },
-        { name: 'Forest',       value: 'bg_forest'       },
-        { name: 'Cyber',        value: 'bg_cyber'        },
-        { name: 'Galaxy',       value: 'bg_galaxy'       },
-        { name: 'Shadow Realm', value: 'bg_shadow_realm' },
+  
+  // ── 1. Nhóm SYSTEM (Hệ thống lệnh) ───────────────────────────────
+  .addSubcommandGroup(group => group
+    .setName('system')
+    .setDescription('Quản lý bật/tắt các lệnh trên server')
+    .addSubcommand(sub => sub
+      .setName('disable')
+      .setDescription('Tắt một lệnh — người thường sẽ không dùng được')
+      .addStringOption(o => o
+        .setName('command')
+        .setDescription('Tên lệnh cần tắt')
+        .setRequired(true)
+        .addChoices(...ALL_COMMANDS)
       )
     )
-    .addAttachmentOption(o => o
-      .setName('image')
-      .setDescription('File ảnh (jpg/png/webp) hoặc ảnh động (gif) — khuyến nghị 800×300px')
-      .setRequired(true)
+    .addSubcommand(sub => sub
+      .setName('enable')
+      .setDescription('Bật lại một lệnh đã tắt')
+      .addStringOption(o => o
+        .setName('command')
+        .setDescription('Tên lệnh cần bật lại')
+        .setRequired(true)
+        .addChoices(...ALL_COMMANDS)
+      )
+    )
+    .addSubcommand(sub => sub
+      .setName('list')
+      .setDescription('Xem trạng thái bật/tắt của tất cả lệnh')
+    )
+  )
+
+  // ── 2. Nhóm ECO (Kinh tế) ────────────────────────────────────────
+  .addSubcommandGroup(group => group
+    .setName('eco')
+    .setDescription('Quản lý tiền tệ và kinh tế của server')
+    .addSubcommand(sub => sub
+      .setName('give')
+      .setDescription('[Admin] Tặng coins cho người dùng')
+      .addUserOption(o => o.setName('user').setDescription('Người nhận').setRequired(true))
+      .addIntegerOption(o => o.setName('amount').setDescription('Số coins').setRequired(true).setMinValue(1))
+      .addStringOption(o => o.setName('reason').setDescription('Lý do'))
+    )
+    .addSubcommand(sub => sub
+      .setName('take')
+      .setDescription('[Admin] Trừ coins của người dùng')
+      .addUserOption(o => o.setName('user').setDescription('Người bị trừ').setRequired(true))
+      .addIntegerOption(o => o.setName('amount').setDescription('Số coins').setRequired(true).setMinValue(1))
+      .addStringOption(o => o.setName('reason').setDescription('Lý do'))
+    )
+    .addSubcommand(sub => sub
+      .setName('history')
+      .setDescription('[Admin] Xem lịch sử giao dịch của người dùng')
+      .addUserOption(o => o.setName('user').setDescription('Người dùng cần kiểm tra').setRequired(true))
+    )
+    .addSubcommand(sub => sub
+      .setName('stats')
+      .setDescription('[Admin] Thống kê economy toàn server')
+    )
+  )
+
+  // ── 3. Nhóm CONTENT (Nội dung & Sự kiện) ─────────────────────────
+  .addSubcommandGroup(group => group
+    .setName('content')
+    .setDescription('Cập nhật tài nguyên và quản lý mùa giải')
+    .addSubcommand(sub => sub
+      .setName('bg_upload')
+      .setDescription('[Admin] Upload ảnh nền cho background cosmetic')
+      .addStringOption(o => o
+        .setName('background')
+        .setDescription('Background cosmetic cần set ảnh')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Study Room',   value: 'bg_study_room'   },
+          { name: 'Forest',       value: 'bg_forest'       },
+          { name: 'Cyber',        value: 'bg_cyber'        },
+          { name: 'Galaxy',       value: 'bg_galaxy'       },
+          { name: 'Shadow Realm', value: 'bg_shadow_realm' },
+        )
+      )
+      .addAttachmentOption(o => o
+        .setName('image')
+        .setDescription('File ảnh (jpg/png/webp) hoặc ảnh động (gif) — khuyến nghị 800×300px')
+        .setRequired(true)
+      )
+    )
+    .addSubcommand(sub => sub
+      .setName('season_reset')
+      .setDescription('[Admin] Kết thúc season hiện tại — reset 50% coins, chuyển sang prestige')
     )
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  const group = interaction.options.getSubcommandGroup();
   const sub = interaction.options.getSubcommand();
-  switch (sub) {
-    case 'disable':       return handleDisable(interaction);
-    case 'enable':        return handleEnable(interaction);
-    case 'list':          return handleList(interaction);
-    case 'eco_give':      return handleEcoGive(interaction);
-    case 'eco_take':      return handleEcoTake(interaction);
-    case 'eco_history':   return handleEcoHistory(interaction);
-    case 'eco_stats':     return handleEcoStats(interaction);
-    case 'season_reset':  return handleSeasonReset(interaction);
-    case 'bg_upload':     return handleBgUpload(interaction);
+
+  if (group === 'system') {
+    switch (sub) {
+      case 'disable': return handleDisable(interaction);
+      case 'enable':  return handleEnable(interaction);
+      case 'list':    return handleList(interaction);
+    }
+  } else if (group === 'eco') {
+    switch (sub) {
+      case 'give':    return handleEcoGive(interaction);
+      case 'take':    return handleEcoTake(interaction);
+      case 'history': return handleEcoHistory(interaction);
+      case 'stats':   return handleEcoStats(interaction);
+    }
+  } else if (group === 'content') {
+    switch (sub) {
+      case 'bg_upload':    return handleBgUpload(interaction);
+      case 'season_reset': return handleSeasonReset(interaction);
+    }
   }
 }
 

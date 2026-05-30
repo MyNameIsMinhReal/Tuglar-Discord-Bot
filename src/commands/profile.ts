@@ -329,12 +329,14 @@ async function showInventory(btn: MessageComponentInteraction, guild: import('di
       desc += `## ${TYPE_LABEL[type] ?? type}\n${lines.join('\n')}\n\n`;
     }
   } else {
-    desc = '*Chưa có cosmetic nào.*';
+    // Đổi lại text cho rõ nghĩa và thêm \n\n để cắt dòng
+    desc = '*Bạn chưa mua cosmetic nào từ Shop.*\n\n';
   }
 
   if (tier > 0) {
     const packInfo = tier >= 2 ? 'Color Pack - Booster Gốc & Booster I' : 'Color Pack - Booster Gốc';
-    desc += `## 🎨 Role Màu\n - Đã mở **${packInfo}** — chọn màu từ menu bên dưới`;
+    // Đã có \n\n ở trên nên Heading ## sẽ hoạt động hoàn hảo
+    desc += `## 🎨 Role Màu\n - Đã mở **${packInfo}** — chọn màu từ menu bên dưới\n\n`;
   }
 
   const embed = new EmbedBuilder()

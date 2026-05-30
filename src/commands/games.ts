@@ -2,8 +2,7 @@ import {
   SlashCommandBuilder, ChatInputCommandInteraction,
   EmbedBuilder, ActionRowBuilder, ButtonBuilder,
   ButtonStyle, ComponentType, ButtonInteraction,
-  Message,
-  MessageFlags,
+  Message, MessageFlags,
 } from 'discord.js';
 import { randInt } from '../utils/helpers';
 import { COLOR } from '../utils/embeds';
@@ -38,10 +37,7 @@ export const data = new SlashCommandBuilder()
     .setDescription('🎱 Hỏi cầu trả lời ngẫu nhiên')
     .addStringOption(o => o.setName('question').setDescription('Câu hỏi của bạn').setRequired(true))
   )
-  .addSubcommand(sub => sub
-    .setName('guess_stop')
-    .setDescription('⛔ Dừng game đoán số đang chạy')
-  )
+  // ĐÃ XÓA SUBCOMMAND 'guess_stop'
   .addSubcommand(sub => sub
     .setName('wyr')
     .setDescription('🤔 Would You Rather — ai cũng vote được!')
@@ -52,10 +48,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   switch (sub) {
     case 'dice':       return handleDice(interaction);
     case 'rps':        return handleRPS(interaction);
-    case 'guess':      return handleGuessStart(interaction);
+    case 'guess':      return handleGuess(interaction);
     case 'flip':       return handleFlip(interaction);
     case '8ball':      return handle8Ball(interaction);
-    case 'guess_stop': return handleGuessStop(interaction);
     case 'wyr':        return handleWYR(interaction);
   }
 }
@@ -110,7 +105,6 @@ async function handleRPS(i: ChatInputCommandInteraction): Promise<void> {
     const player = CHOICES[playerIdx];
     const bot = CHOICES[botIdx];
 
-    // 0=Búa, 1=Kéo, 2=Bao. Búa thắng Kéo (0>1), Kéo thắng Bao (1>2), Bao thắng Búa (2>0)
     let result = '';
     let color = COLOR.INFO;
     if (playerIdx === botIdx) { result = '🤝 Hòa!'; color = COLOR.WARNING; }
@@ -137,44 +131,83 @@ async function handleRPS(i: ChatInputCommandInteraction): Promise<void> {
   }
 }
 
-// ── Number Guessing ────────────────────────────────────────────────
-async function handleGuessStart(i: ChatInputCommandInteraction): Promise<void> {
+// ── Number Guessing (Đã gộp và tối ưu) ────────────────────────────
+async function handleGuess(i: ChatInputCommandInteraction): Promise<void> {
   const max = i.options.getInteger('max') ?? 100;
   const key = `${i.guildId}:${i.channelId}:${i.user.id}`;
 
   if (guessGames.has(key)) {
     return void await i.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.WARNING)
-        .setDescription('⚠️ Bạn đang có game chưa kết thúc! Dùng `/game guess_stop` để dừng.')],
+        .setDescription('⚠️ Bạn đang có game chưa kết thúc!\n👉 Hãy bấm nút **⛔ Dừng chơi** ở tin nhắn cũ hoặc chờ hết giờ.')],
       flags: MessageFlags.Ephemeral,
     });
   }
 
   const target = randInt(1, max);
-  const maxAttempts = Math.ceil(Math.log2(max)) + 2; // Optimal + 2
+  const maxAttempts = Math.ceil(Math.log2(max)) + 2; 
   guessGames.set(key, { target, attempts: 0, max: maxAttempts });
+
+  // Khởi tạo nút Dừng
+  const stopBtn = new ButtonBuilder()
+    .setCustomId('guess_stop')
+    .setLabel('⛔ Dừng chơi')
+    .setStyle(ButtonStyle.Danger);
+  
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(stopBtn);
+  const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(ButtonBuilder.from(stopBtn).setDisabled(true));
 
   await i.reply({
     embeds: [new EmbedBuilder()
       .setColor(COLOR.GAME)
       .setTitle('🔢 Đoán Số!')
       .setDescription(`Mình đang nghĩ một số từ **1 đến ${max}**.\nBạn có **${maxAttempts} lượt** để đoán!\nGõ số vào chat nhé 👇`)],
+    components: [row]
   });
 
-  const filter = (m: Message) => m.author.id === i.user.id && /^\d+$/.test(m.content.trim());
-  const collector = (i.channel as any).createMessageCollector({ filter, time: 120_000 });
+  const msg = await i.fetchReply();
 
-  collector.on('collect', async (msg: Message) => {
+  // Collector lắng nghe tin nhắn chứa chữ số
+  const filter = (m: Message) => m.author.id === i.user.id && /^\d+$/.test(m.content.trim());
+  const msgCollector = (i.channel as any).createMessageCollector({ filter, time: 120_000 });
+
+  // Collector lắng nghe nút bấm Dừng
+  const btnCollector = (msg as Message).createMessageComponentCollector({
+    componentType: ComponentType.Button,
+    filter: b => b.user.id === i.user.id && b.customId === 'guess_stop',
+    time: 120_000
+  });
+
+  // Khi bấm nút Dừng
+  btnCollector.on('collect', async b => {
+    guessGames.delete(key);
+    msgCollector.stop('stopped_by_user'); // Tắt việc lắng nghe chat
+    
+    await b.update({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.INFO)
+        .setTitle('🔢 Đoán Số!')
+        .setDescription(`⛔ Game đã dừng. Con số bí mật là **${target}**`)],
+      components: [disabledRow]
+    });
+    btnCollector.stop();
+  });
+
+  // Khi có người nhập số
+  msgCollector.on('collect', async (guessMsg: Message) => {
     const game = guessGames.get(key);
-    if (!game) return collector.stop();
+    if (!game) return msgCollector.stop();
 
     game.attempts++;
-    const guess = parseInt(msg.content.trim());
+    const guess = parseInt(guessMsg.content.trim());
 
     if (guess === game.target) {
       guessGames.delete(key);
-      collector.stop();
-      await msg.reply({
+      msgCollector.stop('win');
+      btnCollector.stop();
+      await i.editReply({ components: [disabledRow] }).catch(() => {}); // Vô hiệu hóa nút
+      
+      await guessMsg.reply({
         embeds: [new EmbedBuilder()
           .setColor(COLOR.SUCCESS)
           .setTitle('🎉 Chính xác!')
@@ -182,8 +215,11 @@ async function handleGuessStart(i: ChatInputCommandInteraction): Promise<void> {
       });
     } else if (game.attempts >= game.max) {
       guessGames.delete(key);
-      collector.stop();
-      await msg.reply({
+      msgCollector.stop('lose');
+      btnCollector.stop();
+      await i.editReply({ components: [disabledRow] }).catch(() => {}); // Vô hiệu hóa nút
+      
+      await guessMsg.reply({
         embeds: [new EmbedBuilder()
           .setColor(COLOR.DANGER)
           .setTitle('💀 Hết lượt!')
@@ -192,7 +228,7 @@ async function handleGuessStart(i: ChatInputCommandInteraction): Promise<void> {
     } else {
       const hint = guess < game.target ? '📈 Lớn hơn' : '📉 Nhỏ hơn';
       const left = game.max - game.attempts;
-      await msg.reply({
+      await guessMsg.reply({
         embeds: [new EmbedBuilder()
           .setColor(COLOR.WARNING)
           .setDescription(`${hint}! Còn **${left} lượt** nữa.`)],
@@ -200,26 +236,19 @@ async function handleGuessStart(i: ChatInputCommandInteraction): Promise<void> {
     }
   });
 
-  collector.on('end', (_, reason: string) => {
+  // Hết giờ (120s)
+  msgCollector.on('end', (_, reason: string) => {
     if (reason === 'time') {
-      const game = guessGames.get(key);
       guessGames.delete(key);
+      btnCollector.stop();
+      i.editReply({ components: [disabledRow] }).catch(() => {}); // Vô hiệu hóa nút
+      
       i.followUp({
         embeds: [new EmbedBuilder().setColor(COLOR.DANGER)
-          .setDescription(`⏰ Game kết thúc do hết giờ. Con số là **${game?.target ?? '???'}**`)],
+          .setDescription(`⏰ Game kết thúc do hết 2 phút. Con số là **${target}**`)],
       }).catch(() => {});
     }
   });
-}
-
-async function handleGuessStop(i: ChatInputCommandInteraction): Promise<void> {
-  const key = `${i.guildId}:${i.channelId}:${i.user.id}`;
-  if (guessGames.has(key)) {
-    guessGames.delete(key);
-    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.INFO).setDescription('⛔ Game đoán số đã dừng.')], flags: MessageFlags.Ephemeral });
-  } else {
-    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.WARNING).setDescription('Bạn không có game nào đang chạy.')], flags: MessageFlags.Ephemeral });
-  }
 }
 
 // ── Coin Flip ──────────────────────────────────────────────────────
@@ -256,7 +285,6 @@ async function handle8Ball(i: ChatInputCommandInteraction): Promise<void> {
 
 // ── Would You Rather ───────────────────────────────────────────────
 const WYR_QUESTIONS: [string, string][] = [
-  // Học tập
   ['Thi trượt 1 môn nhưng không ai biết', 'Đậu hết nhưng cả trường đồn mày quay cóp'],
   ['Nhớ vanh vách mọi thứ nhưng không hiểu gì', 'Hiểu rất sâu nhưng quên sạch sau 1 ngày'],
   ['Học nhóm với toàn người không làm gì', 'Tự học 1 mình 8 tiếng liên tục'],
@@ -264,40 +292,10 @@ const WYR_QUESTIONS: [string, string][] = [
   ['Điểm toàn 9-10 nhưng không có bạn thân', 'Bạn bè đầy nhưng điểm toàn 5-6'],
   ['Luôn hiểu bài ngay lần đầu nhưng quên sau 1 tuần', 'Học chậm nhưng nhớ mãi không quên'],
   ['Học online mãi mãi', 'Học trên lớp mãi mãi, không có nghỉ hè'],
-  ['Ngủ trong lớp mà không ai biết', 'Chú ý nghe hết nhưng về nhà không hiểu gì'],
-  ['Thi vấn đáp trực tiếp với hội đồng', 'Thi viết 4 tiếng không được ra ngoài'],
-  ['Không bao giờ trễ deadline nhưng chất lượng chỉ 6/10', 'Bài làm hoàn hảo nhưng luôn nộp muộn'],
-
-  // Tech / lập trình
   ['Code không bao giờ có bug nhưng không hiểu tại sao nó chạy', 'Hiểu code từng dòng nhưng bug liên tục'],
-  ['Làm ở Google lương trung bình', 'Lương gấp đôi nhưng ở startup không ai nghe tên'],
-  ['Không bao giờ dùng được Stack Overflow', 'Không bao giờ dùng được Google'],
-  ['Debug 8 tiếng tìm ra đúng bug', 'Fix tạm 10 phút — prod vẫn sống, bug vẫn còn'],
-  ['Toàn bộ code của mình là open source và nổi tiếng', 'Code xịn nhưng không ai biết, không bao giờ public'],
-  ['Không bao giờ dùng được AI để code', 'AI code thay hết nhưng mình không hiểu gì nó viết'],
-  ['Senior 10 năm kinh nghiệm nhưng lương junior', 'Junior mới ra trường nhưng lương senior vì "good at interview"'],
-
-  // Cuộc sống
   ['Biết 10 thứ tiếng nhưng không có ai để nói chuyện', 'Chỉ biết tiếng Việt nhưng có bạn thân khắp thế giới'],
-  ['Biết trước tương lai nhưng không thay đổi được gì', 'Thay đổi được tương lai nhưng không biết trước gì sẽ xảy ra'],
   ['Giàu nhưng không ai biết mình giàu', 'Nổi tiếng nhưng không có tiền'],
-  ['Sống không có internet nhưng có sách đọc vô hạn', 'Có internet nhưng chỉ xem được YouTube Shorts'],
-  ['Ăn 1 món yêu thích mãi mãi, không ăn được gì khác', 'Ăn được mọi thứ nhưng món yêu thích biến mất vĩnh viễn'],
-  ['Không bao giờ bị muỗi đốt', 'Không bao giờ bị kẹt xe'],
-  ['Luôn thức dậy tỉnh táo, không cần báo thức', 'Ngủ ngon ngay khi đặt đầu xuống gối, dù đang ở đâu'],
-  ['Được 10 triệu nhưng phải tiêu hết trong 24 tiếng', 'Được 500k mỗi ngày mãi mãi'],
-  ['Không bao giờ bị ai hiểu lầm', 'Không bao giờ bị ai nói xấu sau lưng'],
-  ['Đi du lịch 30 nước nhưng đi 1 mình', 'Đi 3 nước nhưng cùng nhóm bạn thân nhất'],
-  ['Làm nghề yêu thích nhưng lương thấp', 'Làm nghề nhàm chán nhưng lương cao, về là xả được'],
-
-  // Vui / absurd
   ['Có siêu năng lực đọc suy nghĩ người khác', 'Bay được nhưng chỉ cao 50cm so với mặt đất'],
-  ['Mặt đỏ hết cỡ mỗi khi nói dối', 'Hắt xì to như sấm mỗi khi nghe tên crush'],
-  ['Mọi câu mình nói đều thành sự thật — nhưng chỉ 1 câu/ngày', 'Nói được bất kỳ điều gì nhưng không ai tin'],
-  ['Không bao giờ bị mưa ướt dù đứng giữa trời mưa', 'Không bao giờ bị nóng dù đứng giữa trưa hè'],
-  ['Gặp 1 nhân vật trong anime/game yêu thích ngoài đời thật', 'Gặp 1 người nổi tiếng trong thực tế mà mình idol'],
-  ['Admin 1 server 10k người toàn drama', 'Member bình thường trong server yên bình không có gì xảy ra'],
-  ['Có custom role cực đẹp nhưng không chat được', 'Không có role gì nhưng được nói tự do'],
 ];
 
 const WYR_DURATION_MS = 60_000;
