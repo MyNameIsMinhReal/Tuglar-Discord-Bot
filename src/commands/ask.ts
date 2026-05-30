@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder , MessageFlags } from 'discord.js';
 import * as AI from '../services/AIService';
 import { aiResponseEmbed, errorEmbed, COLOR } from '../utils/embeds';
 import { checkCooldown, formatCooldown } from '../utils/cooldown';
@@ -18,7 +18,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       embeds: [new EmbedBuilder()
         .setColor(COLOR.WARNING)
         .setDescription(`⏳ Chờ **${formatCooldown(left)}** nữa mới dùng \`/ask\` được nhé.`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }

@@ -1,7 +1,8 @@
 import {
   SlashCommandBuilder, ChatInputCommandInteraction,
   EmbedBuilder, TextChannel,
-} from 'discord.js';
+  MessageFlags,
+, MessageFlags } from 'discord.js';
 import * as AI from '../services/AIService';
 import { COLOR, errorEmbed, loadingEmbed } from '../utils/embeds';
 
@@ -193,7 +194,7 @@ async function handleCaption(i: ChatInputCommandInteraction): Promise<void> {
 // ── Spell Check ────────────────────────────────────────────────────
 async function handleFix(i: ChatInputCommandInteraction): Promise<void> {
   const text = i.options.getString('text', true);
-  await i.deferReply({ ephemeral: true });
+  await i.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const result = await AI.spellCheck(text);

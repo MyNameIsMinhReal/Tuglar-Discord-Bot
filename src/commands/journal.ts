@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder , MessageFlags } from 'discord.js';
 import { db } from '../database';
 import { JournalRow } from '../types';
 import { COLOR, errorEmbed, successEmbed } from '../utils/embeds';
@@ -74,7 +74,7 @@ async function handleWrite(i: ChatInputCommandInteraction): Promise<void> {
     .setTimestamp()
     .setFooter({ text: 'Chỉ bạn mới xem được nhật ký của mình' });
 
-  await i.reply({ embeds: [embed], ephemeral: true });
+  await i.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 async function handleList(i: ChatInputCommandInteraction): Promise<void> {
@@ -88,7 +88,7 @@ async function handleList(i: ChatInputCommandInteraction): Promise<void> {
     return void await i.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.INFO)
         .setDescription('Bạn chưa có bài nhật ký nào!\nDùng `/journal write` để bắt đầu viết.')],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -105,7 +105,7 @@ async function handleList(i: ChatInputCommandInteraction): Promise<void> {
       .setTitle(`📔 Nhật ký của bạn (${entries.length} bài)`)
       .setDescription(lines.join('\n'))
       .setFooter({ text: 'Dùng /journal read <id> để đọc đầy đủ' })],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -119,7 +119,7 @@ async function handleRead(i: ChatInputCommandInteraction): Promise<void> {
   if (!entry) {
     return void await i.reply({
       embeds: [errorEmbed(`Không tìm thấy nhật ký #${id}`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -131,7 +131,7 @@ async function handleRead(i: ChatInputCommandInteraction): Promise<void> {
     .setTimestamp(date)
     .setFooter({ text: date.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) });
 
-  await i.reply({ embeds: [embed], ephemeral: true });
+  await i.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 async function handleDeleteJournal(i: ChatInputCommandInteraction): Promise<void> {
@@ -142,11 +142,11 @@ async function handleDeleteJournal(i: ChatInputCommandInteraction): Promise<void
   ).get(id, i.user.id) as unknown as JournalRow | undefined;
 
   if (!entry) {
-    return void await i.reply({ embeds: [errorEmbed(`Không tìm thấy nhật ký #${id}`)], ephemeral: true });
+    return void await i.reply({ embeds: [errorEmbed(`Không tìm thấy nhật ký #${id}`)], flags: MessageFlags.Ephemeral });
   }
 
   db.prepare('DELETE FROM journal WHERE id = ?').run(id);
-  await i.reply({ embeds: [successEmbed('Đã xóa', `Nhật ký #${id} đã được xóa.`)], ephemeral: true });
+  await i.reply({ embeds: [successEmbed('Đã xóa', `Nhật ký #${id} đã được xóa.`)], flags: MessageFlags.Ephemeral });
 }
 
 async function handleSearchJournal(i: ChatInputCommandInteraction): Promise<void> {
@@ -160,7 +160,7 @@ async function handleSearchJournal(i: ChatInputCommandInteraction): Promise<void
     return void await i.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.WARNING)
         .setDescription(`Không tìm thấy nhật ký nào chứa **"${keyword}"**`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -175,6 +175,6 @@ async function handleSearchJournal(i: ChatInputCommandInteraction): Promise<void
       .setColor(COLOR.JOURNAL)
       .setTitle(`🔍 Tìm kiếm: "${keyword}"`)
       .setDescription(lines.join('\n'))],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }

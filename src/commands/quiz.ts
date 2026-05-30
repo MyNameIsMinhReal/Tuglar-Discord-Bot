@@ -2,7 +2,8 @@ import {
   SlashCommandBuilder, ChatInputCommandInteraction,
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   ComponentType, ButtonInteraction,
-} from 'discord.js';
+  MessageFlags,
+, MessageFlags } from 'discord.js';
 import { generateQuiz } from '../services/AIService';
 import { QuizQuestion } from '../types';
 import { COLOR, errorEmbed } from '../utils/embeds';
@@ -24,7 +25,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       embeds: [new EmbedBuilder()
         .setColor(COLOR.WARNING)
         .setDescription(`⏳ Chờ **${formatCooldown(left)}** nữa mới dùng \`/quiz\` được nhé.`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }

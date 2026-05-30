@@ -4,6 +4,7 @@ import {
   SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder,
   ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType,
   AttachmentBuilder, Message,
+  MessageFlags,
 } from 'discord.js';
 import * as Gacha from '../services/GachaService';
 import * as Eco from '../services/EconomyService';
@@ -177,7 +178,7 @@ async function handlePack(i: ChatInputCommandInteraction): Promise<void> {
       embeds: [new EmbedBuilder()
         .setColor(COLOR.DANGER)
         .setDescription(`Không đủ coins! Cần **${formatCoins(cost)} coins**, bạn có **${formatCoins(user.balance)}**.\nDùng \`/eco daily\` để kiếm thêm nha.`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }

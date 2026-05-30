@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder , MessageFlags } from 'discord.js';
 import { db } from '../database';
 import { DocumentRow } from '../types';
 import { errorEmbed, successEmbed, COLOR } from '../utils/embeds';
@@ -56,7 +56,7 @@ async function handleAdd(i: ChatInputCommandInteraction): Promise<void> {
 
   // Validate URL
   try { new URL(url); } catch {
-    return void await i.reply({ embeds: [errorEmbed('URL không hợp lệ!')], ephemeral: true });
+    return void await i.reply({ embeds: [errorEmbed('URL không hợp lệ!')], flags: MessageFlags.Ephemeral });
   }
 
   const result = db.prepare(`
@@ -134,7 +134,7 @@ async function handleSearch(i: ChatInputCommandInteraction): Promise<void> {
       embeds: [new EmbedBuilder()
         .setColor(COLOR.WARNING)
         .setDescription(`Không tìm thấy tài liệu nào chứa từ khóa **"${keyword}"**`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -158,7 +158,7 @@ async function handleDelete(i: ChatInputCommandInteraction): Promise<void> {
   ).get(id, i.user.id, i.guildId!) as unknown as DocumentRow | undefined;
 
   if (!doc) {
-    return void await i.reply({ embeds: [errorEmbed(`Không tìm thấy tài liệu #${id}`)], ephemeral: true });
+    return void await i.reply({ embeds: [errorEmbed(`Không tìm thấy tài liệu #${id}`)], flags: MessageFlags.Ephemeral });
   }
 
   db.prepare('DELETE FROM documents WHERE id = ?').run(id);

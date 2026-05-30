@@ -3,7 +3,8 @@ import {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder,
   ButtonStyle, ComponentType, ButtonInteraction,
   Message,
-} from 'discord.js';
+  MessageFlags,
+, MessageFlags } from 'discord.js';
 import { randInt } from '../utils/helpers';
 import { COLOR } from '../utils/embeds';
 
@@ -145,7 +146,7 @@ async function handleGuessStart(i: ChatInputCommandInteraction): Promise<void> {
     return void await i.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.WARNING)
         .setDescription('⚠️ Bạn đang có game chưa kết thúc! Dùng `/game guess_stop` để dừng.')],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -215,9 +216,9 @@ async function handleGuessStop(i: ChatInputCommandInteraction): Promise<void> {
   const key = `${i.guildId}:${i.channelId}:${i.user.id}`;
   if (guessGames.has(key)) {
     guessGames.delete(key);
-    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.INFO).setDescription('⛔ Game đoán số đã dừng.')], ephemeral: true });
+    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.INFO).setDescription('⛔ Game đoán số đã dừng.')], flags: MessageFlags.Ephemeral });
   } else {
-    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.WARNING).setDescription('Bạn không có game nào đang chạy.')], ephemeral: true });
+    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.WARNING).setDescription('Bạn không có game nào đang chạy.')], flags: MessageFlags.Ephemeral });
   }
 }
 
@@ -347,7 +348,7 @@ async function handleWYR(i: ChatInputCommandInteraction): Promise<void> {
     const prev = votes.get(btn.user.id);
 
     if (prev === choice) {
-      await btn.reply({ content: 'Bạn đã chọn cái này rồi!', ephemeral: true });
+      await btn.reply({ content: 'Bạn đã chọn cái này rồi!', flags: MessageFlags.Ephemeral });
       return;
     }
 

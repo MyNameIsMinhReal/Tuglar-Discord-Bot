@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder , MessageFlags } from 'discord.js';
 import { db } from '../database';
 import { DeadlineRow } from '../types';
 import { parseDate, formatDate, relativeTime } from '../utils/helpers';
@@ -49,12 +49,12 @@ async function handleAdd(i: ChatInputCommandInteraction): Promise<void> {
   if (!dueDate) {
     await i.reply({
       embeds: [errorEmbed('Ngày giờ không đúng định dạng!\nNhập theo kiểu: `DD/MM/YYYY HH:mm`\nVí dụ: `25/12/2025 23:59`')],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
   if (dueDate < new Date()) {
-    await i.reply({ embeds: [errorEmbed('Ngày đó đã qua rồi 😅')], ephemeral: true });
+    await i.reply({ embeds: [errorEmbed('Ngày đó đã qua rồi 😅')], flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -120,7 +120,7 @@ async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
   ).get(id, i.user.id) as unknown as DeadlineRow | undefined;
 
   if (!deadline) {
-    await i.reply({ embeds: [errorEmbed(`Không tìm thấy deadline **#${id}** của bạn.`)], ephemeral: true });
+    await i.reply({ embeds: [errorEmbed(`Không tìm thấy deadline **#${id}** của bạn.`)], flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -147,7 +147,7 @@ async function handleDelete(i: ChatInputCommandInteraction): Promise<void> {
   ).get(id, i.user.id) as unknown as DeadlineRow | undefined;
 
   if (!deadline) {
-    await i.reply({ embeds: [errorEmbed(`Không tìm thấy deadline **#${id}**.`)], ephemeral: true });
+    await i.reply({ embeds: [errorEmbed(`Không tìm thấy deadline **#${id}**.`)], flags: MessageFlags.Ephemeral });
     return;
   }
 

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, PermissionFlagsBits , MessageFlags } from 'discord.js';
 import { writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
@@ -123,12 +123,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 async function handleDisable(i: ChatInputCommandInteraction): Promise<void> {
   const cmd = i.options.getString('command', true);
   if (PROTECTED.has(cmd)) {
-    await i.reply({ content: `❌ Lệnh \`/${cmd}\` không thể tắt.`, ephemeral: true });
+    await i.reply({ content: `❌ Lệnh \`/${cmd}\` không thể tắt.`, flags: MessageFlags.Ephemeral });
     return;
   }
   const already = db.prepare('SELECT 1 FROM disabled_commands WHERE command_name = ? AND guild_id = ?').get(cmd, i.guildId!);
   if (already) {
-    await i.reply({ content: `⚠️ \`/${cmd}\` đang bị tắt rồi.`, ephemeral: true });
+    await i.reply({ content: `⚠️ \`/${cmd}\` đang bị tắt rồi.`, flags: MessageFlags.Ephemeral });
     return;
   }
   db.prepare('INSERT INTO disabled_commands (command_name, guild_id, disabled_by) VALUES (?, ?, ?)').run(cmd, i.guildId!, i.user.id);
@@ -142,7 +142,7 @@ async function handleEnable(i: ChatInputCommandInteraction): Promise<void> {
   const cmd = i.options.getString('command', true);
   const result = db.prepare('DELETE FROM disabled_commands WHERE command_name = ? AND guild_id = ?').run(cmd, i.guildId!);
   if (result.changes === 0) {
-    await i.reply({ content: `⚠️ \`/${cmd}\` đang bật rồi, không cần làm gì.`, ephemeral: true });
+    await i.reply({ content: `⚠️ \`/${cmd}\` đang bật rồi, không cần làm gì.`, flags: MessageFlags.Ephemeral });
     return;
   }
   await i.reply({
@@ -159,7 +159,7 @@ async function handleList(i: ChatInputCommandInteraction): Promise<void> {
   await i.reply({
     embeds: [new EmbedBuilder().setColor(COLOR.INFO).setTitle('⚙️ Trạng thái lệnh trên server')
       .setDescription(lines.join('\n')).setFooter({ text: 'Admin luôn dùng được dù lệnh đang tắt' })],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -217,7 +217,7 @@ async function handleEcoHistory(i: ChatInputCommandInteraction): Promise<void> {
   `).all(target.id, i.guildId!) as Array<{ amount: number; type: string; meta: string | null; created_at: string }>;
 
   if (rows.length === 0) {
-    await i.reply({ content: `<@${target.id}> chưa có giao dịch nào.`, ephemeral: true });
+    await i.reply({ content: `<@${target.id}> chưa có giao dịch nào.`, flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -239,7 +239,7 @@ async function handleEcoHistory(i: ChatInputCommandInteraction): Promise<void> {
       .setTitle(`📋 Lịch sử giao dịch — ${target.displayName}`)
       .setDescription(lines.join('\n'))
       .setFooter({ text: '20 giao dịch gần nhất' })],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -263,7 +263,7 @@ async function handleEcoStats(i: ChatInputCommandInteraction): Promise<void> {
         { name: '📈 Tổng đã sinh ra', value: formatCoins(stats.total_ever_earned ?? 0), inline: true },
         { name: '🔥 Coins đã đốt/tiêu', value: formatCoins(Math.max(0, burned)), inline: true },
       )],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -274,11 +274,11 @@ async function handleBgUpload(i: ChatInputCommandInteraction): Promise<void> {
 
   const VALID_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   if (!attachment.contentType || !VALID_TYPES.includes(attachment.contentType)) {
-    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ File phải là ảnh jpg, png, webp hoặc gif.')], ephemeral: true });
+    await i.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ File phải là ảnh jpg, png, webp hoặc gif.')], flags: MessageFlags.Ephemeral });
     return;
   }
 
-  await i.deferReply({ ephemeral: true });
+  await i.deferReply({ flags: MessageFlags.Ephemeral });
 
   const ext     = attachment.contentType === 'image/jpeg' ? 'jpg' : attachment.contentType.split('/')[1];
   const bgDir   = join(process.cwd(), 'assets/backgrounds');

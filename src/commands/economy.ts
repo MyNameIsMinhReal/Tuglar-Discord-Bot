@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, GuildMember } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, GuildMember , MessageFlags } from 'discord.js';
 import * as Eco from '../services/EconomyService';
 import { COLOR, errorEmbed } from '../utils/embeds';
 import { formatCoins } from '../utils/helpers';
@@ -66,7 +66,7 @@ async function handleDaily(i: ChatInputCommandInteraction): Promise<void> {
         .setColor(COLOR.WARNING)
         .setTitle('⏳ Chưa đến giờ!')
         .setDescription(`Còn **${h}h ${m}m** nữa mới được nhận tiếp nhé.`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -185,7 +185,7 @@ async function handleBuy(i: ChatInputCommandInteraction): Promise<void> {
   const itemId = i.options.getString('item_id', true);
   const item = shopItems.find(s => s.id === itemId);
   if (!item) {
-    await i.reply({ embeds: [errorEmbed(`Không tìm thấy item \`${itemId}\`.`)], ephemeral: true });
+    await i.reply({ embeds: [errorEmbed(`Không tìm thấy item \`${itemId}\`.`)], flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -200,7 +200,7 @@ async function handleBuy(i: ChatInputCommandInteraction): Promise<void> {
           { name: '💸 Cần', value: `${formatCoins(item.price)} coins`, inline: true },
           { name: '👛 Bạn có', value: `${formatCoins(user.balance)} coins`, inline: true },
         )],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -228,11 +228,11 @@ async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
   const amount = i.options.getInteger('amount', true);
 
   if (target.id === i.user.id) {
-    await i.reply({ embeds: [errorEmbed('Không thể tự chuyển cho mình 😄')], ephemeral: true });
+    await i.reply({ embeds: [errorEmbed('Không thể tự chuyển cho mình 😄')], flags: MessageFlags.Ephemeral });
     return;
   }
   if (target.bot) {
-    await i.reply({ embeds: [errorEmbed('Bot không nhận tiền đâu bạn ơi.')], ephemeral: true });
+    await i.reply({ embeds: [errorEmbed('Bot không nhận tiền đâu bạn ơi.')], flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -243,7 +243,7 @@ async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
     if (daysSinceJoin < MIN_MEMBER_DAYS) {
       await i.reply({
         embeds: [errorEmbed(`Bạn cần ở server ít nhất **${MIN_MEMBER_DAYS} ngày** mới được chuyển coins.`)],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -258,7 +258,7 @@ async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
         .setColor(COLOR.WARNING)
         .setTitle('⚠️ Vượt giới hạn chuyển tiền!')
         .setDescription(`Giới hạn **${DAILY_TRANSFER_LIMIT} coins/ngày**.\nHôm nay đã chuyển **${formatCoins(todayTotal)} coins**, còn có thể chuyển **${formatCoins(remaining)} coins**.`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -274,7 +274,7 @@ async function handlePay(i: ChatInputCommandInteraction): Promise<void> {
         .setColor(COLOR.DANGER)
         .setTitle('❌ Không đủ coins!')
         .setDescription(`Bạn chỉ có **${formatCoins(user.balance)} coins** thôi.`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }

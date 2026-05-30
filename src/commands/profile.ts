@@ -2,6 +2,7 @@ import {
   SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, User, AttachmentBuilder,
   StringSelectMenuBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   GuildMember, Role, MessageComponentInteraction,
+  MessageFlags,
 } from 'discord.js';
 import {
   BOOSTER_ROLE_ID, BOOSTER_TIERS, ALL_COLOR_ROLES, FOOTER_TEXT as BOOSTER_FOOTER,
@@ -220,7 +221,7 @@ async function handleEquip(i: ChatInputCommandInteraction): Promise<void> {
   if (!result.success) {
     await i.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription(`❌ ${result.error}`)],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -231,7 +232,7 @@ async function handleEquip(i: ChatInputCommandInteraction): Promise<void> {
       .setColor(COLOR.SUCCESS)
       .setTitle('✅ Trang bị thành công!')
       .setDescription(`${TYPE_LABEL[item.type] ?? item.type}: **${item.name}** đã được trang bị.\nXem profile với \`/profile view\`.`)],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -241,12 +242,12 @@ async function handleUnequip(i: ChatInputCommandInteraction): Promise<void> {
   const ok = Profile.unequipSlot(i.user.id, i.guildId!, slot);
 
   if (!ok) {
-    await i.reply({ content: `❌ Slot \`${slot}\` không hợp lệ.`, ephemeral: true });
+    await i.reply({ content: `❌ Slot \`${slot}\` không hợp lệ.`, flags: MessageFlags.Ephemeral });
     return;
   }
   await i.reply({
     embeds: [new EmbedBuilder().setColor(COLOR.INFO).setDescription(`🔲 Đã tháo ${TYPE_LABEL[slot] ?? slot}.`)],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -312,7 +313,7 @@ async function applyColorRole(
     ?? await guild.members.fetch(userId).catch(() => null);
 
   if (!member) {
-    await comp.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ Không tìm thấy member.')], ephemeral: true });
+    await comp.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ Không tìm thấy member.')], flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -323,14 +324,14 @@ async function applyColorRole(
     if (toRemove.length) await member.roles.remove(toRemove);
     await comp.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('🗑️・Đã thu hồi role thành công!').setFooter({ text: BOOSTER_FOOTER })],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
   const newRole = guild.roles.cache.get(selectedValue);
   if (!newRole) {
-    await comp.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ Role không tồn tại.')], ephemeral: true });
+    await comp.reply({ embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ Role không tồn tại.')], flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -338,7 +339,7 @@ async function applyColorRole(
     await member.roles.remove(newRole);
     await comp.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setTitle(`Đã gỡ bỏ role: ${newRole.name}`).setFooter({ text: BOOSTER_FOOTER })],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   } else {
     const toRemove = ALL_COLOR_ROLES
@@ -348,7 +349,7 @@ async function applyColorRole(
     await member.roles.add(newRole);
     await comp.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.SUCCESS).setTitle(`✅ Đã trang bị role: ${newRole.name}`).setFooter({ text: BOOSTER_FOOTER })],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 }
@@ -369,7 +370,7 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
       embeds: [new EmbedBuilder()
         .setColor(COLOR.INFO)
         .setDescription('Kho trống. Dùng `/profile shop` để xem và mua cosmetics!')],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -412,7 +413,7 @@ async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
     .setThumbnail(i.user.displayAvatarURL())
     .setFooter({ text: '✅ đang trang bị · /profile equip <id>' });
 
-  await i.reply({ embeds: [embed], components: boosterRows, ephemeral: true });
+  await i.reply({ embeds: [embed], components: boosterRows, flags: MessageFlags.Ephemeral });
 
   if (boosterRows.length === 0) return;
 
@@ -450,7 +451,7 @@ async function handleAchievements(i: ChatInputCommandInteraction): Promise<void>
     .setThumbnail(i.user.displayAvatarURL())
     .setFooter({ text: `${earned.size} / ${all.length} thành tích đã mở khóa` });
 
-  await i.reply({ embeds: [embed], ephemeral: true });
+  await i.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 // ── Preview helper ─────────────────────────────────────────────────
@@ -458,7 +459,7 @@ async function previewCosmetic(
   comp: import('discord.js').StringSelectMenuInteraction,
   guildId: string,
 ): Promise<void> {
-  await comp.deferReply({ ephemeral: true });
+  await comp.deferReply({ flags: MessageFlags.Ephemeral });
 
   const itemId       = comp.values[0];
   const item         = Profile.getById(itemId);

@@ -8,7 +8,8 @@ import {
   EmbedBuilder,
   ComponentType,
   Message,
-} from 'discord.js';
+  MessageFlags,
+, MessageFlags } from 'discord.js';
 import { db } from '../database';
 import { Challenge, ChallengeLogRow, ChallengePendingRow } from '../types';
 import { cfg } from '../config';
@@ -181,7 +182,7 @@ async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
   ).get(i.user.id, guildId, today) as unknown as { completed: number } | undefined;
 
   if (existingLog?.completed) {
-    return void await i.reply({ content: 'Hôm nay đã hoàn thành rồi nha, ngon lắm! 😄', ephemeral: true });
+    return void await i.reply({ content: 'Hôm nay đã hoàn thành rồi nha, ngon lắm! 😄', flags: MessageFlags.Ephemeral });
   }
 
   const existingPending = db.prepare(
@@ -189,17 +190,17 @@ async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
   ).get(i.user.id, guildId, today) as unknown as { status: string } | undefined;
 
   if (existingPending?.status === 'pending') {
-    return void await i.reply({ content: '🕐 Ảnh của bạn đang chờ admin duyệt rồi!', ephemeral: true });
+    return void await i.reply({ content: '🕐 Ảnh của bạn đang chờ admin duyệt rồi!', flags: MessageFlags.Ephemeral });
   }
 
   const proof = i.options.getAttachment('proof', true);
   if (!proof.contentType?.startsWith('image/')) {
-    return void await i.reply({ content: '❌ File này không phải ảnh nha, gửi PNG/JPG/GIF thôi.', ephemeral: true });
+    return void await i.reply({ content: '❌ File này không phải ảnh nha, gửi PNG/JPG/GIF thôi.', flags: MessageFlags.Ephemeral });
   }
 
   const reviewChannelId = process.env.CHALLENGE_REVIEW_CHANNEL_ID;
   if (!reviewChannelId) {
-    return void await i.reply({ content: '❌ Admin chưa setup kênh duyệt, nhắn admin xem lại config nha.', ephemeral: true });
+    return void await i.reply({ content: '❌ Admin chưa setup kênh duyệt, nhắn admin xem lại config nha.', flags: MessageFlags.Ephemeral });
   }
 
   db.prepare(`
@@ -215,7 +216,7 @@ async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
 
   const reviewChannel = await i.client.channels.fetch(reviewChannelId).catch(() => null);
   if (!reviewChannel?.isTextBased()) {
-    return void await i.reply({ content: '❌ Kênh duyệt không hợp lệ. Liên hệ admin.', ephemeral: true });
+    return void await i.reply({ content: '❌ Kênh duyệt không hợp lệ. Liên hệ admin.', flags: MessageFlags.Ephemeral });
   }
 
   const embed = new EmbedBuilder()
@@ -248,7 +249,7 @@ async function handleDone(i: ChatInputCommandInteraction): Promise<void> {
 
   db.prepare('UPDATE challenge_pending SET message_id = ? WHERE id = ?').run(reviewMsg.id, row.id);
 
-  await i.reply({ content: '📸 Gửi rồi! Chờ admin duyệt tí nhé.', ephemeral: true });
+  await i.reply({ content: '📸 Gửi rồi! Chờ admin duyệt tí nhé.', flags: MessageFlags.Ephemeral });
 }
 
 // ── Streak helper (used by handleApprove) ──────────────────────────
@@ -287,7 +288,7 @@ function computeNewStreak(
 // ── Admin Pending Review ───────────────────────────────────────────
 async function handlePending(i: ChatInputCommandInteraction): Promise<void> {
   if (!i.memberPermissions?.has('ManageGuild')) {
-    return void await i.reply({ content: '❌ Lệnh này chỉ dành cho admin.', ephemeral: true });
+    return void await i.reply({ content: '❌ Lệnh này chỉ dành cho admin.', flags: MessageFlags.Ephemeral });
   }
 
   const rows = db.prepare(`
@@ -299,7 +300,7 @@ async function handlePending(i: ChatInputCommandInteraction): Promise<void> {
   if (rows.length === 0) {
     await i.reply({
       embeds: [new EmbedBuilder().setColor(COLOR.SUCCESS).setDescription('Queue trống, không có gì cần duyệt 🎉')],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -336,7 +337,7 @@ async function handlePending(i: ChatInputCommandInteraction): Promise<void> {
     return [actionRow, navRow];
   };
 
-  await i.reply({ embeds: [buildEmbed(page)], components: buildRows(page), ephemeral: true });
+  await i.reply({ embeds: [buildEmbed(page)], components: buildRows(page), flags: MessageFlags.Ephemeral });
 
   const msg = await i.fetchReply();
   const collector = (msg as Message).createMessageComponentCollector({
@@ -449,14 +450,14 @@ async function handlePending(i: ChatInputCommandInteraction): Promise<void> {
 // ── Button handlers (exported for interactionCreate) ───────────────
 export async function handleApprove(i: ButtonInteraction): Promise<void> {
   if (!i.memberPermissions?.has('ManageGuild')) {
-    return void await i.reply({ content: '❌ Bạn không có quyền duyệt.', ephemeral: true });
+    return void await i.reply({ content: '❌ Bạn không có quyền duyệt.', flags: MessageFlags.Ephemeral });
   }
 
   const pendingId = Number.parseInt(i.customId.split(':')[1]);
   const pending = db.prepare('SELECT * FROM challenge_pending WHERE id = ?')
     .get(pendingId) as unknown as ChallengePendingRow | undefined;
 
-  if (!pending) { await i.reply({ content: '❌ Không tìm thấy submission.', ephemeral: true }); return; }
+  if (!pending) { await i.reply({ content: '❌ Không tìm thấy submission.', flags: MessageFlags.Ephemeral }); return; }
 
   // Atomic update — tránh race condition khi 2 admin duyệt cùng lúc
   const updated = db.prepare(
@@ -464,7 +465,7 @@ export async function handleApprove(i: ButtonInteraction): Promise<void> {
   ).run(i.user.id, pendingId);
 
   if (updated.changes === 0) {
-    await i.reply({ content: 'Submission này đã được xử lý rồi.', ephemeral: true });
+    await i.reply({ content: 'Submission này đã được xử lý rồi.', flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -510,15 +511,15 @@ export async function handleApprove(i: ButtonInteraction): Promise<void> {
 
 export async function handleDeny(i: ButtonInteraction): Promise<void> {
   if (!i.memberPermissions?.has('ManageGuild')) {
-    return void await i.reply({ content: '❌ Bạn không có quyền từ chối.', ephemeral: true });
+    return void await i.reply({ content: '❌ Bạn không có quyền từ chối.', flags: MessageFlags.Ephemeral });
   }
 
   const pendingId = Number.parseInt(i.customId.split(':')[1]);
   const pending = db.prepare('SELECT * FROM challenge_pending WHERE id = ?')
     .get(pendingId) as unknown as ChallengePendingRow | undefined;
 
-  if (!pending) { await i.reply({ content: '❌ Không tìm thấy submission.', ephemeral: true }); return; }
-  if (pending.status !== 'pending') { await i.reply({ content: 'Đã xử lý rồi.', ephemeral: true }); return; }
+  if (!pending) { await i.reply({ content: '❌ Không tìm thấy submission.', flags: MessageFlags.Ephemeral }); return; }
+  if (pending.status !== 'pending') { await i.reply({ content: 'Đã xử lý rồi.', flags: MessageFlags.Ephemeral }); return; }
 
   db.prepare('UPDATE challenge_pending SET status = ?, reviewed_by = ? WHERE id = ?')
     .run('denied', i.user.id, pendingId);
