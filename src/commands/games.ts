@@ -4,7 +4,7 @@ import {
   ButtonStyle, ComponentType, ButtonInteraction,
   Message,
   MessageFlags,
-, MessageFlags } from 'discord.js';
+} from 'discord.js';
 import { randInt } from '../utils/helpers';
 import { COLOR } from '../utils/embeds';
 

@@ -9,7 +9,7 @@ import {
   ComponentType,
   Message,
   MessageFlags,
-, MessageFlags } from 'discord.js';
+} from 'discord.js';
 import { db } from '../database';
 import { Challenge, ChallengeLogRow, ChallengePendingRow } from '../types';
 import { cfg } from '../config';

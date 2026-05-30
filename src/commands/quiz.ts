@@ -3,7 +3,7 @@ import {
   EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   ComponentType, ButtonInteraction,
   MessageFlags,
-, MessageFlags } from 'discord.js';
+} from 'discord.js';
 import { generateQuiz } from '../services/AIService';
 import { QuizQuestion } from '../types';
 import { COLOR, errorEmbed } from '../utils/embeds';

@@ -2,7 +2,7 @@ import {
   SlashCommandBuilder, ChatInputCommandInteraction,
   EmbedBuilder, TextChannel,
   MessageFlags,
-, MessageFlags } from 'discord.js';
+} from 'discord.js';
 import * as AI from '../services/AIService';
 import { COLOR, errorEmbed, loadingEmbed } from '../utils/embeds';
 
