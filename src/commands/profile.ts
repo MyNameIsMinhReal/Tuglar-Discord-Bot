@@ -30,19 +30,19 @@ const TYPE_LABEL: Record<string, string> = {
 
 // ── Booster Color Packs ────────────────────────────────────────────
 const COLOR_PACK_1 = [
-  { label: 'Sky',    value: '1162545019123666984', emoji: { id: '1509998906723799191', name: 'IC_Sky' } },
-  { label: 'Carrot', value: '1157296480722366555', emoji: { id: '1510003170661892399', name: 'IC_Carrot' } },
-  { label: 'Rose',   value: '1157297666879926304', emoji: { id: '1510003959652155556', name: 'IC_Rose' } },
-  { label: 'Purple', value: '1157298499461840906', emoji: { id: '1510004463362900229', name: 'IC_Purple' } },
-  { label: 'Peachy', value: '1157298054764974130', emoji: { id: '1509997745916612768', name: 'IC_Peachy' } },
+  { label: 'Sky',    value: '1162545019123666984', emoji: '<:IC_Sky:1510155404296847381>' },
+  { label: 'Carrot', value: '1157296480722366555', emoji: '<:IC_Carrot:1510155381723103232>' },
+  { label: 'Rose',   value: '1157297666879926304', emoji: '<:IC_Rose:1510155402430386227>' },
+  { label: 'Purple', value: '1157298499461840906', emoji: '<:IC_Purple:1510155400752791572>' },
+  { label: 'Peachy', value: '1157298054764974130', emoji: '<:IC_Peachy:1510155398513164358>' },
 ];
 
 const COLOR_PACK_2 = [
-  { label: 'Mint',        value: '1164764867769667664', emoji: { id: '1510016060982558731', name: 'IC_Mint' } },
-  { label: 'xLemon',      value: '1164766440335876126', emoji: { id: '1510016065122336929', name: 'IC_xLemon' } },
-  { label: '1stHeart',    value: '1510012176876699768', emoji: { id: '1510016047896334536', name: 'IC_1stHeart' } },
-  { label: 'Cyber-20xx',  value: '1164946570920337538', emoji: { id: '1510016058613043230', name: 'IC_Cyber20xx' } },
-  { label: 'TraDaoCamSa', value: '1164946156858650635', emoji: { id: '1510016063125852410', name: 'IC_TraDaoCamSa' } },
+  { label: 'Mint',        value: '1164764867769667664', emoji: '<:IC_Mint:1510155388387856457>' },
+  { label: 'xLemon',      value: '1164766440335876126', emoji: '<:IC_xLemon:1510155408285765673>' },
+  { label: '1stHeart',    value: '1510012176876699768', emoji: '<:IC_1stHeart:1510155379047399474>' },
+  { label: 'Cyber-20xx',  value: '1164946570920337538', emoji: '<:IC_Cyber20xx:1510155383799549962>' },
+  { label: 'TraDaoCamSa', value: '1164946156858650635', emoji: '<:IC_TraDaoCamSa:1510155406297530398>' },
 ];
 
 export const data = new SlashCommandBuilder()
