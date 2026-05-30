@@ -28,7 +28,7 @@ const TYPE_LABEL: Record<string, string> = {
   name_style: '✍️ Name Style',
 };
 
-// ── Booster Color Packs ────────────────────────────────────────────
+// ── Booster Color Packs (Đã tối ưu sang chuỗi thô để dễ copy/paste) ──
 const COLOR_PACK_1 = [
   { label: 'Sky',    value: '1162545019123666984', emoji: '<:IC_Sky:1510155404296847381>' },
   { label: 'Carrot', value: '1157296480722366555', emoji: '<:IC_Carrot:1510155381723103232>' },
@@ -54,7 +54,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   return handleView(interaction);
 }
 
-// ── View ───────────────────────────────────────────────────────────
 async function handleView(i: ChatInputCommandInteraction): Promise<void> {
   await i.deferReply();
 
@@ -67,7 +66,6 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
   const badges   = Achievement.getUserAchievements(target.id, guildId);
   const total    = Gacha.getTotalRolls(target.id, guildId);
 
-  // Equipped items
   const equippedTitle  = settings.title_id  ? Profile.getById(settings.title_id)  : null;
   const equippedBg     = settings.background_id ? Profile.getById(settings.background_id) : null;
   const equippedFrame  = settings.frame_id  ? Profile.getById(settings.frame_id)  : null;
@@ -137,16 +135,17 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
     embed.addFields({ name: '🎨 Profile Cosmetics', value: cosmeticLines.join('\n'), inline: false });
   }
 
+  // Quy hoạch lại 4 nút bấm chuẩn Form của Trang cá nhân tổng hợp
   const navRow = isOwn
     ? new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId('prof_inv').setLabel('🗄️ Kho').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('prof_shop').setLabel('🛍️ Shop').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('prof_ach').setLabel('🏅 Thành tích').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('prof_inv').setLabel('🎨 Tủ đồ Trang trí').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('prof_cards').setLabel('🃏 Bộ sưu tập Thẻ bài').setStyle(ButtonStyle.Secondary),
       )
     : null;
   const components = navRow ? [navRow] : [];
 
-  // Try canvas card — attach as image if successful, fallback to thumbnail
   try {
     const { buffer: cardBuf, filename: cardFile } = await renderProfileCard({
       username:     target.displayName,
@@ -163,7 +162,7 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
     });
     const attachment = new AttachmentBuilder(cardBuf, { name: cardFile });
     embed.setImage(`attachment://${cardFile}`);
-    await i.editReply({ embeds: [embed], files: [attachment], components });
+    await i.editReply({ embeds: [embed], files: [cardBuf ? attachment : null].filter((f): f is AttachmentBuilder => f !== null), components });
   } catch {
     embed.setThumbnail(target.displayAvatarURL({ size: 256 }));
     await i.editReply({ embeds: [embed], components });
@@ -182,12 +181,12 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
     if (btn.customId === 'prof_inv')  await showInventory(btn as MessageComponentInteraction, guild);
     else if (btn.customId === 'prof_shop') await showShop(btn as MessageComponentInteraction, guild);
     else if (btn.customId === 'prof_ach')  await showAchievements(btn as MessageComponentInteraction);
+    else if (btn.customId === 'prof_cards') await showCardInventory(btn as MessageComponentInteraction);
   });
 
   collector.on('end', () => { i.editReply({ components: [] }).catch(() => {}); });
 }
 
-// ── Booster Role Helpers ───────────────────────────────────────────
 function getUserTier(member: GuildMember): number {
   if (Object.values(BOOSTER_TIERS).some(id => member.roles.cache.has(id))) return 2;
   if (member.roles.cache.has(BOOSTER_ROLE_ID)) return 1;
@@ -290,7 +289,7 @@ async function applyColorRole(
   }
 }
 
-// ── Inventory ──────────────────────────────────────────────────────
+// ── Tủ đồ Trang trí (Inventory cũ nhưng đã vá lỗi xuống dòng Heading Markdown) ──
 async function showInventory(btn: MessageComponentInteraction, guild: import('discord.js').Guild): Promise<void> {
   const userId   = btn.user.id;
   const guildId  = btn.guildId!;
@@ -329,24 +328,21 @@ async function showInventory(btn: MessageComponentInteraction, guild: import('di
       desc += `## ${TYPE_LABEL[type] ?? type}\n${lines.join('\n')}\n\n`;
     }
   } else {
-    // Đổi lại text cho rõ nghĩa và thêm \n\n để cắt dòng
     desc = '*Bạn chưa mua cosmetic nào từ Shop.*\n\n';
   }
 
   if (tier > 0) {
     const packInfo = tier >= 2 ? 'Color Pack - Booster Gốc & Booster I' : 'Color Pack - Booster Gốc';
-    // Đã có \n\n ở trên nên Heading ## sẽ hoạt động hoàn hảo
     desc += `## 🎨 Role Màu\n - Đã mở **${packInfo}** — chọn màu từ menu bên dưới\n\n`;
   }
 
   const embed = new EmbedBuilder()
     .setColor(COLOR.PRIMARY)
-    .setTitle('🗄️ Kho')
+    .setTitle('🎨 Tủ Đồ Trang Trí')
     .setDescription(desc.trim())
     .setThumbnail(btn.user.displayAvatarURL())
     .setFooter({ text: '✅ đang trang bị' });
 
-  // ── Equip / Unequip selects ──────────────────────────────────────
   const rows: ActionRowBuilder<any>[] = [];
 
   if (owned.length > 0) {
@@ -382,7 +378,6 @@ async function showInventory(btn: MessageComponentInteraction, guild: import('di
     }
   }
 
-  // Add booster rows (cap total at 5)
   rows.push(...buildBoosterRows(tier));
   const finalRows = rows.slice(0, 5);
 
@@ -419,6 +414,49 @@ async function showInventory(btn: MessageComponentInteraction, guild: import('di
   });
 
   collector.on('end', () => { btn.editReply({ components: [] }).catch(() => {}); });
+}
+
+// ── Kho Thẻ Bài Gacha Solo Leveling (Bê nguyên logic từ Gacha inventory cũ sang) ──
+async function showCardInventory(btn: MessageComponentInteraction): Promise<void> {
+  const userId = btn.user.id;
+  const guildId = btn.guildId!;
+  const inventory = Gacha.getInventory(userId, guildId);
+  const total = Gacha.getTotalRolls(userId, guildId);
+
+  if (inventory.length === 0) {
+    await btn.reply({
+      embeds: [new EmbedBuilder()
+        .setColor(COLOR.INFO)
+        .setTitle('🎒 Kho trống!')
+        .setDescription('Bạn chưa sở hữu thẻ bài Solo Leveling nào.\n👉 Dùng lệnh `/gacha pack` để bắt đầu cày cuốc mở pack nhân vật nhé!')],
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const grouped: Record<string, string[]> = { SSR: [], SR: [], R: [], N: [] };
+  for (const item of inventory) {
+    const tag = item.count > 1 ? ` x${item.count}` : '';
+    if (!grouped[item.item_rarity]) grouped[item.item_rarity] = [];
+    grouped[item.item_rarity].push(`${item.item_emoji} ${item.item_name}${tag}`);
+  }
+
+  const RARITY_STARS: Record<string, string> = { SSR: '✨✨✨', SR: '⭐⭐', R: '⭐', N: '·' };
+
+  const embed = new EmbedBuilder()
+    .setColor(COLOR.INFO)
+    .setTitle(`🃏 Kho Thẻ Bài Solo Leveling — ${btn.user.displayName}`)
+    .setThumbnail(btn.user.displayAvatarURL())
+    .setFooter({ text: `Tổng cộng ${total} lần roll gacha` });
+
+  for (const rarity of ['SSR', 'SR', 'R', 'N']) {
+    const items = grouped[rarity];
+    if (items && items.length > 0) {
+      embed.addFields({ name: `${rarity} ${RARITY_STARS[rarity]}`, value: items.join(', ') });
+    }
+  }
+
+  await btn.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 // ── Achievements ───────────────────────────────────────────────────
@@ -545,13 +583,13 @@ async function previewCosmetic(
     await btn.update({
       embeds: [new EmbedBuilder()
         .setColor(RARITY_COLORS[item.rarity] ?? COLOR.SUCCESS)
-        .setTitle(`✅ ${item.name}`)
+        .setTitle(`✅ Đã mua: ${item.name}`)
         .setDescription(item.description)
         .addFields(
           { name: 'Loại',     value: TYPE_LABEL[item.type] ?? item.type,        inline: true },
           { name: 'Còn lại',  value: `${formatCoins(updatedEco.balance)} coins`, inline: true },
         )
-        .setFooter({ text: `Vào 🗄️ Kho để trang bị` })],
+        .setFooter({ text: `Vào Tủ Đồ Trang Trí để trang bị` })],
       components: [],
       files: [],
     });
@@ -562,7 +600,7 @@ async function previewCosmetic(
   });
 }
 
-// ── Shop (+ preview & buy) ─────────────────────────────────────────
+// ── Shop ───────────────────────────────────────────────────────────
 async function showShop(btn: MessageComponentInteraction, _guild: import('discord.js').Guild): Promise<void> {
   const userId  = btn.user.id;
   const guildId = btn.guildId!;

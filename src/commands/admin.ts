@@ -13,9 +13,7 @@ const BG_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif'] as const;
 const PROTECTED = new Set(['admin']);
 
 const ALL_COMMANDS = [
-  { name: '/ask',       value: 'ask' },
   { name: '/ai',        value: 'ai' },
-  { name: '/quiz',      value: 'quiz' },
   { name: '/deadline',  value: 'deadline' },
   { name: '/eco',       value: 'eco' },
   { name: '/gacha',     value: 'gacha' },

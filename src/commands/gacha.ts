@@ -27,12 +27,11 @@ function checkGachaAchievements(userId: string, guildId: string, client: import(
   client.users.fetch(userId).then(u => u.send(msg)).catch(() => null);
 }
 
-// Cost per card loaded from economy_config.json
 const PACK_COSTS: Record<number, number> = Object.fromEntries(
   Object.entries(cfg.packCosts).map(([k, v]) => [Number(k), v])
 );
 
-// ── Command Definition ─────────────────────────────────────────────
+// ── Command Definition (ĐÃ XÓA SUBCOMMAND INVENTORY) ──────────────────
 export const data = new SlashCommandBuilder()
   .setName('gacha')
   .setDescription('Roll nhân vật Solo Leveling')
@@ -50,15 +49,13 @@ export const data = new SlashCommandBuilder()
       )
     )
   )
-  .addSubcommand(sub => sub.setName('inventory').setDescription('Xem kho của bạn'))
   .addSubcommand(sub => sub.setName('pool').setDescription('Xem tỷ lệ các nhân vật'));
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const sub = interaction.options.getSubcommand();
   switch (sub) {
-    case 'pack':      return handlePack(interaction);
-    case 'inventory': return handleInventory(interaction);
-    case 'pool':      return handlePool(interaction);
+    case 'pack': return handlePack(interaction);
+    case 'pool': return handlePool(interaction);
   }
 }
 
@@ -156,7 +153,6 @@ function packSummaryEmbed(items: GachaItem[], remainingCoins: number): EmbedBuil
     .setFooter({ text: `Còn lại: ${formatCoins(remainingCoins)} coins` });
 }
 
-// Button row builders
 const rowOpen   = () => new ActionRowBuilder<ButtonBuilder>().addComponents(
   new ButtonBuilder().setCustomId('pack_open').setLabel('Mở Pack').setEmoji('✂️').setStyle(ButtonStyle.Success),
 );
@@ -184,7 +180,6 @@ async function handlePack(i: ChatInputCommandInteraction): Promise<void> {
   }
 
   Eco.deductCoins(i.user.id, i.guildId!, cost);
-  // Size 1 không guaranteed R+ (chỉ 1 lá), size 5+ có guaranteed
   const items = size >= 5
     ? Gacha.rollPackWithPity(i.user.id, i.guildId!, size)
     : [Gacha.rollGachaWithPity(i.user.id, i.guildId!)];
@@ -208,7 +203,6 @@ async function handlePack(i: ChatInputCommandInteraction): Promise<void> {
     return;
   }
 
-  // Pack 10: show tất cả cùng lúc sau khi mở (tiết kiệm click)
   if (size === 10) {
     items.forEach(it => Gacha.saveToInventory(i.user.id, i.guildId!, it));
     checkGachaAchievements(i.user.id, i.guildId!, i.client);
@@ -259,44 +253,6 @@ async function revealCards(
     embeds: [packSummaryEmbed(items, Eco.getOrCreate(i.user.id, i.guildId!).balance)],
     files: [], components: [],
   });
-}
-
-// ── Inventory ──────────────────────────────────────────────────────
-async function handleInventory(i: ChatInputCommandInteraction): Promise<void> {
-  const inventory = Gacha.getInventory(i.user.id, i.guildId!);
-  const total     = Gacha.getTotalRolls(i.user.id, i.guildId!);
-
-  if (inventory.length === 0) {
-    await i.reply({
-      embeds: [new EmbedBuilder()
-        .setColor(COLOR.INFO)
-        .setTitle('🎒 Kho trống!')
-        .setDescription('Dùng `/gacha pack` để bắt đầu 🎰')],
-    });
-    return;
-  }
-
-  const grouped: Record<string, string[]> = { SSR: [], SR: [], R: [], N: [] };
-  for (const item of inventory) {
-    const tag = item.count > 1 ? ` x${item.count}` : '';
-    if (!grouped[item.item_rarity]) grouped[item.item_rarity] = [];
-    grouped[item.item_rarity].push(`${item.item_emoji} ${item.item_name}${tag}`);
-  }
-
-  const embed = new EmbedBuilder()
-    .setColor(COLOR.INFO)
-    .setTitle(`🎒 Kho của ${i.user.displayName}`)
-    .setThumbnail(i.user.displayAvatarURL())
-    .setFooter({ text: `Tổng ${total} lần roll` });
-
-  for (const rarity of ['SSR', 'SR', 'R', 'N']) {
-    const items = grouped[rarity];
-    if (items && items.length > 0) {
-      embed.addFields({ name: `${rarity} ${RARITY_STARS[rarity]}`, value: items.join(', ') });
-    }
-  }
-
-  await i.reply({ embeds: [embed] });
 }
 
 // ── Pool ───────────────────────────────────────────────────────────
