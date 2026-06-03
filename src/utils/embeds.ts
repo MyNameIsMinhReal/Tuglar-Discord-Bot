@@ -7,8 +7,8 @@ export const COLOR = {
   WARNING:  0xFEE75C,
   DANGER:   0xED4245,
   INFO:     0x5DADE2,
-  GACHA_SSR:0xFFD700,
-  GACHA_SR: 0xC0C0C0,
+  GACHA_LEGENDARY: 0xFFD700,
+  GACHA_EPIC:      0x9B59B6,
   ECONOMY:  0xF1C40F,
   GAME:     0x9B59B6,
   AI:       0x1ABC9C,
@@ -92,8 +92,8 @@ export function aiResponseEmbed(question: string, answer: string, subject?: stri
 
 // ── Rarity ─────────────────────────────────────────────────────────
 export const RARITY_COLORS: Record<string, number> = {
-  SSR: 0xFFD700, SR: 0xC0C0C0, R: 0xCD7F32, N: 0x9E9E9E,
+  Legendary: 0xFFD700, Epic: 0x9B59B6, Rare: 0xCD7F32, Common: 0x9E9E9E,
 };
 export const RARITY_STARS: Record<string, string> = {
-  SSR: '✨✨✨', SR: '⭐⭐', R: '⭐', N: '·',
+  Legendary: '✨✨✨', Epic: '⭐⭐', Rare: '⭐', Common: '·',
 };

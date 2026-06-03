@@ -1,3 +1,5 @@
+import path from 'node:path';
+import fs from 'node:fs';
 import { db } from './index';
 
 export function initDatabase(): void {
@@ -167,11 +169,56 @@ export function initDatabase(): void {
       earned_at  TEXT DEFAULT (datetime('now')),
       PRIMARY KEY (user_id, guild_id, badge_id)
     );
+
+    CREATE TABLE IF NOT EXISTS profile_cosmetics (
+      id              TEXT PRIMARY KEY,
+      name            TEXT NOT NULL,
+      type            TEXT NOT NULL,
+      rarity          TEXT NOT NULL,
+      price           INTEGER NOT NULL,
+      description     TEXT NOT NULL,
+      is_limited      INTEGER DEFAULT 0,
+      available_until TEXT,
+      added_at        TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Migrations for existing tables
   try { db.exec('ALTER TABLE challenge_log ADD COLUMN used_grace INTEGER DEFAULT 0'); } catch {}
   try { db.exec('ALTER TABLE economy ADD COLUMN prestige_points INTEGER DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE economy ADD COLUMN daily_streak INTEGER DEFAULT 0'); } catch {}
+
+  // Seed profile_cosmetics từ JSON nếu bảng đang trống
+  const cosmeticCount = (db.prepare('SELECT COUNT(*) as c FROM profile_cosmetics').get() as { c: number }).c;
+  if (cosmeticCount === 0) {
+    const RARITY_MAP: Record<string, string> = { N: 'Common', R: 'Rare', SR: 'Epic', SSR: 'Legendary' };
+    try {
+      const jsonPath = path.join(process.cwd(), 'data', 'profile_cosmetics.json');
+      const items: any[] = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+      const insert = db.prepare(`
+        INSERT OR IGNORE INTO profile_cosmetics (id, name, type, rarity, price, description, is_limited)
+        VALUES (@id, @name, @type, @rarity, @price, @description, @is_limited)
+      `);
+      db.exec('BEGIN');
+      try {
+        for (const r of items) {
+          insert.run({
+            id:          r.id,
+            name:        r.name,
+            type:        r.type,
+            rarity:      RARITY_MAP[r.rarity] ?? r.rarity,
+            price:       r.price,
+            description: r.description,
+            is_limited:  r.isLimited ? 1 : 0,
+          });
+        }
+        db.exec('COMMIT');
+      } catch {
+        db.exec('ROLLBACK');
+      }
+      console.log(`✅ Seeded ${items.length} cosmetics from JSON`);
+    } catch { /* JSON không tồn tại hoặc lỗi parse — bỏ qua */ }
+  }
 
   console.log('✅ Database schema initialized');
 }

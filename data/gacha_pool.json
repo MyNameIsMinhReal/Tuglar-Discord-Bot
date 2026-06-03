@@ -3,7 +3,7 @@
     {
       "id": "sung_jinwoo",
       "name": "Sung Jin-Woo",
-      "rarity": "SSR",
+      "rarity": "Legendary",
       "rate": 0.6,
       "emoji": "⚔️",
       "description": "Shadow Monarch - Người mạnh nhất thế giới",
@@ -12,7 +12,7 @@
     {
       "id": "cha_hae_in",
       "name": "Cha Hae-In",
-      "rarity": "SSR",
+      "rarity": "Legendary",
       "rate": 0.6,
       "emoji": "🗡️",
       "description": "Thợ săn S-rank của Hàn Quốc",
@@ -21,7 +21,7 @@
     {
       "id": "beru",
       "name": "Beru",
-      "rarity": "SSR",
+      "rarity": "Legendary",
       "rate": 0.4,
       "emoji": "🪲",
       "description": "Vua Kiến - Shadow Soldier mạnh nhất",
@@ -30,7 +30,7 @@
     {
       "id": "igris",
       "name": "Igris",
-      "rarity": "SSR",
+      "rarity": "Legendary",
       "rate": 0.4,
       "emoji": "🩸",
       "description": "Kị sĩ máu đỏ - Vệ sĩ trung thành",
@@ -39,7 +39,7 @@
     {
       "id": "goto_ryuji",
       "name": "Goto Ryuji",
-      "rarity": "SR",
+      "rarity": "Epic",
       "rate": 4.0,
       "emoji": "⚡",
       "description": "Thợ săn S-rank mạnh nhất Nhật Bản",
@@ -48,7 +48,7 @@
     {
       "id": "thomas_andre",
       "name": "Thomas Andre",
-      "rarity": "SR",
+      "rarity": "Epic",
       "rate": 4.0,
       "emoji": "🏋️",
       "description": "Thợ săn quốc gia của Mỹ",
@@ -57,7 +57,7 @@
     {
       "id": "liu_zhigang",
       "name": "Liu Zhigang",
-      "rarity": "SR",
+      "rarity": "Epic",
       "rate": 3.5,
       "emoji": "🐉",
       "description": "Thợ săn S-rank Trung Quốc",
@@ -66,7 +66,7 @@
     {
       "id": "yoo_jinho",
       "name": "Yoo Jin-Ho",
-      "rarity": "R",
+      "rarity": "Rare",
       "rate": 14.0,
       "emoji": "💼",
       "description": "Phó đội trưởng đáng tin cậy",
@@ -75,7 +75,7 @@
     {
       "id": "iron",
       "name": "Iron",
-      "rarity": "R",
+      "rarity": "Rare",
       "rate": 14.0,
       "emoji": "🛡️",
       "description": "Shadow Soldier phòng thủ",
@@ -84,7 +84,7 @@
     {
       "id": "tank",
       "name": "Tank",
-      "rarity": "R",
+      "rarity": "Rare",
       "rate": 13.0,
       "emoji": "🪖",
       "description": "Shadow Soldier chiến binh",
@@ -93,7 +93,7 @@
     {
       "id": "shadow_soldier_1",
       "name": "Lính Bóng Tối",
-      "rarity": "N",
+      "rarity": "Common",
       "rate": 23.25,
       "emoji": "👤",
       "description": "Binh lính thông thường của Shadow Army",
@@ -102,7 +102,7 @@
     {
       "id": "mana_crystal",
       "name": "Tinh Thể Mana",
-      "rarity": "N",
+      "rarity": "Common",
       "rate": 22.25,
       "emoji": "💎",
       "description": "Vật phẩm hồi phục năng lượng",

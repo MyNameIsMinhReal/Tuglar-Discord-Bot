@@ -7,6 +7,7 @@ import {
 import * as AI from '../services/AIService';
 import { COLOR, errorEmbed, aiResponseEmbed } from '../utils/embeds';
 import { formatCooldown } from '../utils/cooldown';
+import { isTopicBlocked } from '../utils/contentFilter';
 import { QuizQuestion } from '../types';
 
 // Hệ thống quản lý Cooldown dùng chung cho toàn bộ lệnh AI
@@ -144,11 +145,19 @@ async function handleAsk(i: ChatInputCommandInteraction): Promise<void> {
 }
 
 // ── Quiz (Bê từ quiz.ts sang) ──────────────────────────────────────
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 async function handleQuiz(i: ChatInputCommandInteraction): Promise<void> {
   const topic = i.options.getString('topic', true);
   const count = i.options.getInteger('count') ?? 5;
+
+  if (isTopicBlocked(topic)) {
+    await i.reply({
+      embeds: [errorEmbed('❌ Chủ đề này không phù hợp. Vui lòng chọn chủ đề học tập khác.')],
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
 
   await i.deferReply();
 

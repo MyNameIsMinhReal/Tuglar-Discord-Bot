@@ -37,14 +37,24 @@ export interface ProfileCardResult {
   filename: string;
 }
 
-const ASSETS = join(process.cwd(), 'assets');
+const ASSETS    = join(process.cwd(), 'assets');
+const FONTS_DIR = join(ASSETS, 'fonts');
 
 try {
-  GlobalFonts.registerFromPath(join(ASSETS, 'fonts/Inter-Regular.ttf'), 'Inter');
-  GlobalFonts.registerFromPath(join(ASSETS, 'fonts/Inter-Bold.ttf'), 'Inter');
+  GlobalFonts.registerFromPath(join(FONTS_DIR, 'Inter-Regular.ttf'), 'Inter');
+  GlobalFonts.registerFromPath(join(FONTS_DIR, 'Inter-Bold.ttf'), 'Inter');
 } catch { /* font files not present */ }
 
-const FONT = GlobalFonts.families.some(f => f.family === 'Inter') ? 'Inter' : 'sans-serif';
+function getActiveFont(): string {
+  try {
+    const activePath = join(FONTS_DIR, 'active.json');
+    if (existsSync(activePath)) {
+      const { family } = JSON.parse(readFileSync(activePath, 'utf-8'));
+      if (family && GlobalFonts.families.some(f => f.family === family)) return family;
+    }
+  } catch { /* ignore */ }
+  return GlobalFonts.families.some(f => f.family === 'Inter') ? 'Inter' : 'sans-serif';
+}
 
 const BG_THEMES: Record<string, [string, string]> = {
   bg_study_room:   ['#2c1810', '#5c3a1e'],
@@ -80,6 +90,7 @@ async function drawUI(
   accent: string,
   preloadedAvatar?: Awaited<ReturnType<typeof loadImage>> | null,
 ): Promise<void> {
+  const FONT = getActiveFont();
   const cx = 130, cy = 150, r = 78, tx = 250;
   const frameColor = FRAME_COLORS[data.frameId ?? ''] ?? accent;
 
@@ -250,6 +261,10 @@ async function loadBgImage(backgroundId: string | null) {
     } catch { continue; }
   }
   return null;
+}
+
+export function registerFont(fontPath: string, fontFamily: string): void {
+  GlobalFonts.registerFromPath(fontPath, fontFamily);
 }
 
 // ── Main export ────────────────────────────────────────────────────

@@ -75,15 +75,15 @@ export function escapeMd(str: string): string {
 
 // ── Rarity Colors ─────────────────────────────────────────────────
 export const RARITY_COLORS: Record<string, number> = {
-  SSR: 0xFFD700,
-  SR:  0xC0C0C0,
-  R:   0xCD7F32,
-  N:   0x9E9E9E,
+  Legendary: 0xFFD700,
+  Epic:      0x9B59B6,
+  Rare:      0xCD7F32,
+  Common:    0x9E9E9E,
 };
 
 export const RARITY_STARS: Record<string, string> = {
-  SSR: '✨✨✨',
-  SR:  '⭐⭐',
-  R:   '⭐',
-  N:   '·',
+  Legendary: '✨✨✨',
+  Epic:      '⭐⭐',
+  Rare:      '⭐',
+  Common:    '·',
 };

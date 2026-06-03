@@ -45,20 +45,33 @@ export function canClaimDaily(userId: string, guildId: string): { canClaim: bool
   return { canClaim: hoursLeft === 0, hoursLeft };
 }
 
-export function claimDaily(userId: string, guildId: string): number {
+export function claimDaily(userId: string, guildId: string): { reward: number; streak: number } {
+  const user   = getOrCreate(userId, guildId);
   const range  = cfg.dailyMax - cfg.dailyMin;
   const reward = Math.floor(Math.random() * (range + 1)) + cfg.dailyMin;
-  const now = new Date().toISOString();
+  const now    = new Date();
+
+  // Streak: tăng nếu last_daily trong 24-48h, reset nếu quá 48h
+  let streak = (user as any).daily_streak ?? 0;
+  if (user.last_daily) {
+    const diffHours = (now.getTime() - new Date(user.last_daily).getTime()) / 3_600_000;
+    streak = diffHours <= 48 ? streak + 1 : 1;
+  } else {
+    streak = 1;
+  }
+
   db.prepare(`
-    INSERT INTO economy (user_id, guild_id, balance, total_earned, last_daily)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO economy (user_id, guild_id, balance, total_earned, last_daily, daily_streak)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id, guild_id) DO UPDATE SET
-      balance = balance + ?,
+      balance      = balance + ?,
       total_earned = total_earned + ?,
-      last_daily = ?
-  `).run(userId, guildId, reward, reward, now, reward, reward, now);
+      last_daily   = ?,
+      daily_streak = ?
+  `).run(userId, guildId, reward, reward, now.toISOString(), streak, reward, reward, now.toISOString(), streak);
+
   logTransaction(userId, guildId, reward, 'daily');
-  return reward;
+  return { reward, streak };
 }
 
 export function getLeaderboard(guildId: string, limit = 10): EconomyRow[] {

@@ -52,9 +52,9 @@ function setPity(userId: string, guildId: string, sinceSSR: number, sinceSR: num
 }
 
 // Roll với pity:
-//   ≥ 80 rolls chưa SSR  → guaranteed SSR (hard pity)
-//   ≥ 10 rolls chưa SR+  → guaranteed SR+ (hard pity)
-//   ≥ 50 rolls chưa SSR  → soft pity, rate SSR tăng dần
+//   ≥ 80 rolls chưa Legendary  → guaranteed Legendary (hard pity)
+//   ≥ 10 rolls chưa Epic+      → guaranteed Epic+ (hard pity)
+//   ≥ 50 rolls chưa Legendary  → soft pity, rate Legendary tăng dần
 export function rollGachaWithPity(userId: string, guildId: string): GachaItem {
   const pity = getPity(userId, guildId);
   let item: GachaItem;
@@ -62,15 +62,15 @@ export function rollGachaWithPity(userId: string, guildId: string): GachaItem {
   const { ssrHard, ssrSoft, srHard } = cfg.gachaPity;
 
   if (pity.rolls_since_ssr >= ssrHard) {
-    const ssrItems = pool.filter(p => p.rarity === 'SSR');
-    item = rollFromSubset(ssrItems.length > 0 ? ssrItems : pool);
+    const legendaryItems = pool.filter(p => p.rarity === 'Legendary');
+    item = rollFromSubset(legendaryItems.length > 0 ? legendaryItems : pool);
   } else if (pity.rolls_since_sr >= srHard) {
-    const srItems = pool.filter(p => p.rarity === 'SR' || p.rarity === 'SSR');
-    item = rollFromSubset(srItems.length > 0 ? srItems : pool);
+    const epicItems = pool.filter(p => p.rarity === 'Epic' || p.rarity === 'Legendary');
+    item = rollFromSubset(epicItems.length > 0 ? epicItems : pool);
   } else if (pity.rolls_since_ssr >= ssrSoft) {
-    // Soft pity: mỗi roll sau ssrSoft tăng thêm 10% multiplier lên SSR rate
+    // Soft pity: mỗi roll sau ssrSoft tăng thêm 10% multiplier lên Legendary rate
     const boost = 1 + (pity.rolls_since_ssr - ssrSoft) * 0.10;
-    const modPool = pool.map(p => ({ ...p, rate: p.rarity === 'SSR' ? p.rate * boost : p.rate }));
+    const modPool = pool.map(p => ({ ...p, rate: p.rarity === 'Legendary' ? p.rate * boost : p.rate }));
     const total = modPool.reduce((s, p) => s + p.rate, 0);
     let rand = Math.random() * total;
     item = pool[pool.length - 1];
@@ -82,12 +82,12 @@ export function rollGachaWithPity(userId: string, guildId: string): GachaItem {
     item = rollGacha();
   }
 
-  const isSSR   = item.rarity === 'SSR';
-  const isSRPlus = isSSR || item.rarity === 'SR';
+  const isLegendary = item.rarity === 'Legendary';
+  const isEpicPlus  = isLegendary || item.rarity === 'Epic';
   setPity(
     userId, guildId,
-    isSSR    ? 0 : pity.rolls_since_ssr + 1,
-    isSRPlus ? 0 : pity.rolls_since_sr  + 1,
+    isLegendary ? 0 : pity.rolls_since_ssr + 1,
+    isEpicPlus  ? 0 : pity.rolls_since_sr  + 1,
   );
 
   return item;
@@ -101,8 +101,8 @@ export function rollPackWithPity(userId: string, guildId: string, size = 5): Gac
   }
 
   // Safety net: nếu tất cả N thì ép lá đầu thành R+
-  if (!items.some(it => it.rarity !== 'N')) {
-    const rarePool = pool.filter(p => p.rarity !== 'N');
+  if (!items.some(it => it.rarity !== 'Common')) {
+    const rarePool = pool.filter(p => p.rarity !== 'Common');
     if (rarePool.length > 0) items[0] = rollFromSubset(rarePool);
   }
 
@@ -116,7 +116,7 @@ export function rollPackWithPity(userId: string, guildId: string, size = 5): Gac
 
 // Legacy — vẫn dùng trong pool display
 export function rollPack(size = 5): GachaItem[] {
-  const rarePool = pool.filter(p => p.rarity !== 'N');
+  const rarePool = pool.filter(p => p.rarity !== 'Common');
   const guaranteed = rarePool.length > 0 ? rollFromSubset(rarePool) : rollGacha();
   const cards: GachaItem[] = [guaranteed];
   for (let i = 1; i < size; i++) cards.push(rollGacha());
@@ -146,7 +146,7 @@ export function getInventory(userId: string, guildId: string) {
     FROM gacha_inventory
     WHERE user_id = ? AND guild_id = ?
     GROUP BY item_id, item_name
-    ORDER BY CASE item_rarity WHEN 'SSR' THEN 0 WHEN 'SR' THEN 1 WHEN 'R' THEN 2 ELSE 3 END
+    ORDER BY CASE item_rarity WHEN 'Legendary' THEN 0 WHEN 'Epic' THEN 1 WHEN 'Rare' THEN 2 ELSE 3 END
   `).all(userId, guildId) as Array<{ item_rarity: string; item_emoji: string; item_name: string; count: number }>;
 }
 
@@ -159,7 +159,7 @@ export function getTotalRolls(userId: string, guildId: string): number {
 
 export function getSSRCount(userId: string, guildId: string): number {
   const row = db.prepare(
-    "SELECT COUNT(*) as cnt FROM gacha_inventory WHERE user_id = ? AND guild_id = ? AND item_rarity = 'SSR'"
+    "SELECT COUNT(*) as cnt FROM gacha_inventory WHERE user_id = ? AND guild_id = ? AND item_rarity = 'Legendary'"
   ).get(userId, guildId) as { cnt: number };
   return row?.cnt ?? 0;
 }

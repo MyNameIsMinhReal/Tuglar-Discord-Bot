@@ -27,7 +27,7 @@ export async function generateQuiz(topic: string, count = 5): Promise<any[]> {
   const resp = await client.messages.create({
     model: MODEL,
     max_tokens: 2048,
-    system: 'Bạn là giáo viên tạo câu hỏi trắc nghiệm. Chỉ trả về JSON array, không có markdown hay text thêm.',
+    system: 'Bạn là giáo viên tạo câu hỏi trắc nghiệm cho học sinh. Chỉ trả về JSON array, không có markdown hay text thêm. Nếu chủ đề không phù hợp với môi trường học đường (NSFW, bạo lực, nội dung 18+, chất cấm), hãy trả về [] ngay lập tức.',
     messages: [{
       role: 'user',
       content: `Tạo ${count} câu hỏi trắc nghiệm về "${topic}" theo format sau:

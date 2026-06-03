@@ -17,7 +17,7 @@ import { formatCoins } from '../utils/helpers';
 import { renderProfileCard } from '../utils/profileCanvas';
 
 // ── Rarity colors for embed ────────────────────────────────────────
-const RARITY_EMOJI: Record<string, string> = { N: '⬜', R: '🟫', SR: '🟨', SSR: '🌟' };
+const RARITY_EMOJI: Record<string, string> = { Common: '⬜', Rare: '🟫', Epic: '🟨', Legendary: '🌟' };
 
 const TYPE_LABEL: Record<string, string> = {
   background: '🖼️ Background',
@@ -63,7 +63,6 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
 
   const eco      = Eco.getOrCreate(target.id, guildId);
   const settings = Profile.getSettings(target.id, guildId);
-  const badges   = Achievement.getUserAchievements(target.id, guildId);
   const total    = Gacha.getTotalRolls(target.id, guildId);
 
   const equippedTitle  = settings.title_id  ? Profile.getById(settings.title_id)  : null;
@@ -78,14 +77,14 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
   const embedColor = settings.accent_id ? (ACCENT_COLORS[settings.accent_id] ?? COLOR.PRIMARY) : COLOR.PRIMARY;
 
   const streakRow = db.prepare(
-    'SELECT streak FROM challenge_log WHERE user_id = ? AND guild_id = ? AND completed = 1 ORDER BY challenge_date DESC LIMIT 1'
-  ).get(target.id, guildId) as { streak: number } | undefined;
-  const streak = streakRow?.streak ?? 0;
+    'SELECT daily_streak FROM economy WHERE user_id = ? AND guild_id = ?'
+  ).get(target.id, guildId) as { daily_streak: number } | undefined;
+  const streak = streakRow?.daily_streak ?? 0;
 
   const bestCard = db.prepare(`
     SELECT item_rarity, item_emoji, item_name FROM gacha_inventory
     WHERE user_id = ? AND guild_id = ?
-    ORDER BY CASE item_rarity WHEN 'SSR' THEN 0 WHEN 'SR' THEN 1 WHEN 'R' THEN 2 ELSE 3 END LIMIT 1
+    ORDER BY CASE item_rarity WHEN 'Legendary' THEN 0 WHEN 'Epic' THEN 1 WHEN 'Rare' THEN 2 ELSE 3 END LIMIT 1
   `).get(target.id, guildId) as { item_rarity: string; item_emoji: string; item_name: string } | undefined;
 
   const prestigeRow = db.prepare(
@@ -98,10 +97,6 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
   if (equippedBg)     cosmeticLines.push(`${TYPE_LABEL.background}: **${equippedBg.name}**`);
   if (equippedFrame)  cosmeticLines.push(`${TYPE_LABEL.frame}: **${equippedFrame.name}**`);
   if (equippedAccent) cosmeticLines.push(`${TYPE_LABEL.accent}: **${equippedAccent.name}**`);
-
-  const badgeStr = badges.length > 0
-    ? badges.slice(0, 8).map(b => `${b.emoji} ${b.name}`).join('  ·  ')
-    : '*Chưa có thành tích nào*';
 
   const embed = new EmbedBuilder()
     .setColor(embedColor)
@@ -119,14 +114,9 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
       {
         name: '📊 Stats',
         value: [
-          `🔥 Streak: **${streak} ngày**`,
+          `🔥 Daily Streak: **${streak} ngày**`,
           bestCard ? `Best Card: ${bestCard.item_emoji} **${bestCard.item_name}** (${bestCard.item_rarity})` : null,
         ].filter(Boolean).join('  ·  '),
-        inline: false,
-      },
-      {
-        name: `🏅 Achievements (${badges.length})`,
-        value: badgeStr,
         inline: false,
       },
     );
@@ -158,7 +148,7 @@ async function handleView(i: ChatInputCommandInteraction): Promise<void> {
       streak,
       totalRolls:   total,
       bestCard:     bestCard ? `${bestCard.item_name} (${bestCard.item_rarity})` : null,
-      badges,
+      badges:       [],
     });
     const attachment = new AttachmentBuilder(cardBuf, { name: cardFile });
     embed.setImage(`attachment://${cardFile}`);
@@ -434,14 +424,14 @@ async function showCardInventory(btn: MessageComponentInteraction): Promise<void
     return;
   }
 
-  const grouped: Record<string, string[]> = { SSR: [], SR: [], R: [], N: [] };
+  const grouped: Record<string, string[]> = { Legendary: [], Epic: [], Rare: [], Common: [] };
   for (const item of inventory) {
     const tag = item.count > 1 ? ` x${item.count}` : '';
     if (!grouped[item.item_rarity]) grouped[item.item_rarity] = [];
     grouped[item.item_rarity].push(`${item.item_emoji} ${item.item_name}${tag}`);
   }
 
-  const RARITY_STARS: Record<string, string> = { SSR: '✨✨✨', SR: '⭐⭐', R: '⭐', N: '·' };
+  const RARITY_STARS: Record<string, string> = { Legendary: '✨✨✨', Epic: '⭐⭐', Rare: '⭐', Common: '·' };
 
   const embed = new EmbedBuilder()
     .setColor(COLOR.INFO)
@@ -449,7 +439,7 @@ async function showCardInventory(btn: MessageComponentInteraction): Promise<void
     .setThumbnail(btn.user.displayAvatarURL())
     .setFooter({ text: `Tổng cộng ${total} lần roll gacha` });
 
-  for (const rarity of ['SSR', 'SR', 'R', 'N']) {
+  for (const rarity of ['Legendary', 'Epic', 'Rare', 'Common']) {
     const items = grouped[rarity];
     if (items && items.length > 0) {
       embed.addFields({ name: `${rarity} ${RARITY_STARS[rarity]}`, value: items.join(', ') });
@@ -519,7 +509,7 @@ async function previewCosmetic(
 
       const bestCard = db.prepare(
         `SELECT item_rarity, item_name FROM gacha_inventory WHERE user_id = ? AND guild_id = ?
-         ORDER BY CASE item_rarity WHEN 'SSR' THEN 0 WHEN 'SR' THEN 1 WHEN 'R' THEN 2 ELSE 3 END LIMIT 1`
+         ORDER BY CASE item_rarity WHEN 'Legendary' THEN 0 WHEN 'Epic' THEN 1 WHEN 'Rare' THEN 2 ELSE 3 END LIMIT 1`
       ).get(userId, guildId) as { item_rarity: string; item_name: string } | undefined;
 
       const { buffer: buf, filename: previewFile } = await renderProfileCard({
@@ -604,56 +594,127 @@ async function previewCosmetic(
 async function showShop(btn: MessageComponentInteraction, _guild: import('discord.js').Guild): Promise<void> {
   const userId  = btn.user.id;
   const guildId = btn.guildId!;
-  const eco     = Eco.getOrCreate(userId, guildId);
-  const items   = Profile.getCatalog();
-  const owned   = new Set(Profile.getOwned(userId, guildId).map(o => o.cosmetic_id));
 
-  const RARITY_ORDER: Record<string, number> = { N: 0, R: 1, SR: 2, SSR: 3 };
-  const sorted = [...items].sort((a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.price - b.price);
+  const RARITY_ORDER: Record<string, number> = { Common: 0, Rare: 1, Epic: 2, Legendary: 3 };
+  const PAGE_SIZE = 10;
 
-  const grouped = new Map<string, string[]>();
-  for (const item of sorted) {
-    if (!grouped.has(item.type)) grouped.set(item.type, []);
-    const have  = owned.has(item.id) ? ' ✅' : '';
-    const price = eco.balance >= item.price ? `${formatCoins(item.price)} coins` : `~~${formatCoins(item.price)} coins~~`;
-    grouped.get(item.type)!.push(` - ${RARITY_EMOJI[item.rarity]} **${item.name}**${have} — ${price}`);
+  const allItems   = Profile.getCatalog();
+  const categories = (Object.keys(TYPE_LABEL) as string[]).filter(t => allItems.some(i => i.type === t));
+
+  let currentCat  = categories[0] ?? 'background';
+  let currentPage = 0;
+
+  function buildShopPage(): { embed: EmbedBuilder; components: ActionRowBuilder<any>[] } {
+    const eco   = Eco.getOrCreate(userId, guildId);
+    const owned = new Set(Profile.getOwned(userId, guildId).map(o => o.cosmetic_id));
+
+    const catItems = allItems
+      .filter(i => i.type === currentCat)
+      .sort((a, b) => RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.price - b.price);
+
+    const totalPages = Math.max(1, Math.ceil(catItems.length / PAGE_SIZE));
+    currentPage = Math.min(currentPage, totalPages - 1);
+    const pageItems = catItems.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+    const lines = pageItems.map(item => {
+      const have  = owned.has(item.id) ? ' ✅' : '';
+      const price = eco.balance >= item.price
+        ? `${formatCoins(item.price)} coins`
+        : `~~${formatCoins(item.price)} coins~~`;
+      return ` - ${RARITY_EMOJI[item.rarity]} **${item.name}**${have} — ${price}`;
+    });
+
+    const embed = new EmbedBuilder()
+      .setColor(COLOR.INFO)
+      .setTitle(`🛍️ Shop — ${TYPE_LABEL[currentCat] ?? currentCat}`)
+      .setDescription(`Ví: **${formatCoins(eco.balance)} coins**\n\n${lines.join('\n') || '*Chưa có item nào*'}`)
+      .setThumbnail(btn.client.user?.displayAvatarURL() ?? null)
+      .setFooter({ text: `✅ đã sở hữu · Trang ${currentPage + 1}/${totalPages}` });
+
+    const components: ActionRowBuilder<any>[] = [];
+
+    // Row 1: Category select
+    components.push(
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('shop_cat')
+          .setPlaceholder('📂 Chọn danh mục...')
+          .addOptions(categories.map(cat => ({
+            label: TYPE_LABEL[cat] ?? cat,
+            value: cat,
+            default: cat === currentCat,
+          }))),
+      ),
+    );
+
+    // Row 2: Item preview select
+    if (pageItems.length > 0) {
+      components.push(
+        new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('shop_preview')
+            .setPlaceholder('🔍 Chọn item để xem trước & mua...')
+            .addOptions(pageItems.map(item => ({
+              label: `${owned.has(item.id) ? '✅ ' : ''}${item.name} — ${formatCoins(item.price)} coins`,
+              value: item.id,
+              description: `${item.rarity} · ${TYPE_LABEL[item.type] ?? item.type}`,
+              emoji: RARITY_EMOJI[item.rarity],
+            }))),
+        ),
+      );
+    }
+
+    // Row 3: Pagination (chỉ hiện khi có nhiều hơn 1 trang)
+    if (totalPages > 1) {
+      components.push(
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId('shop_prev')
+            .setLabel('◀ Trước')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(currentPage === 0),
+          new ButtonBuilder()
+            .setCustomId('shop_page_info')
+            .setLabel(`${currentPage + 1} / ${totalPages}`)
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true),
+          new ButtonBuilder()
+            .setCustomId('shop_next')
+            .setLabel('Tiếp ▶')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(currentPage >= totalPages - 1),
+        ),
+      );
+    }
+
+    return { embed, components };
   }
 
-  let shopDesc = `Ví: **${formatCoins(eco.balance)} coins**\n\n`;
-  for (const [type, lines] of grouped) {
-    shopDesc += `## ${TYPE_LABEL[type] ?? type}\n${lines.join('\n')}\n\n`;
-  }
-
-  const embed = new EmbedBuilder()
-    .setColor(COLOR.INFO)
-    .setTitle('🛍️ Profile Cosmetic Shop')
-    .setDescription(shopDesc.trim())
-    .setThumbnail(btn.client.user?.displayAvatarURL() ?? null)
-    .setFooter({ text: '✅ đã sở hữu · Chọn item để xem trước' });
-
-  const previewable = sorted.slice(0, 25);
-  if (previewable.length === 0) {
-    await btn.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    return;
-  }
-
-  const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId('shop_preview')
-    .setPlaceholder('🔍 Chọn item để xem trước...')
-    .addOptions(previewable.map(item => ({
-      label: `${owned.has(item.id) ? '✅ ' : ''}${item.name} — ${formatCoins(item.price)} coins`,
-      value: item.id,
-      description: `${item.rarity} · ${TYPE_LABEL[item.type] ?? item.type}`,
-      emoji: RARITY_EMOJI[item.rarity],
-    })));
-
-  await btn.reply({ embeds: [embed], components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)], flags: MessageFlags.Ephemeral });
+  const { embed, components } = buildShopPage();
+  await btn.reply({ embeds: [embed], components, flags: MessageFlags.Ephemeral });
   const msg = await btn.fetchReply();
 
-  const collector = msg.createMessageComponentCollector({ time: 120_000 });
+  const collector = msg.createMessageComponentCollector({ time: 300_000 });
+
   collector.on('collect', async comp => {
-    if (comp.customId !== 'shop_preview') return;
-    await previewCosmetic(comp as import('discord.js').StringSelectMenuInteraction, guildId);
+    if (comp.customId === 'shop_cat') {
+      const sel = comp as import('discord.js').StringSelectMenuInteraction;
+      currentCat  = sel.values[0];
+      currentPage = 0;
+      const { embed, components } = buildShopPage();
+      await comp.update({ embeds: [embed], components });
+    } else if (comp.customId === 'shop_prev') {
+      currentPage = Math.max(0, currentPage - 1);
+      const { embed, components } = buildShopPage();
+      await comp.update({ embeds: [embed], components });
+    } else if (comp.customId === 'shop_next') {
+      currentPage++;
+      const { embed, components } = buildShopPage();
+      await comp.update({ embeds: [embed], components });
+    } else if (comp.customId === 'shop_preview') {
+      await previewCosmetic(comp as import('discord.js').StringSelectMenuInteraction, guildId);
+    }
   });
+
   collector.on('end', () => { btn.editReply({ components: [] }).catch(() => {}); });
 }

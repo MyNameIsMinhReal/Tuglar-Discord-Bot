@@ -97,7 +97,7 @@ export interface ChallengePendingRow {
 export interface GachaItem {
   id: string;
   name: string;
-  rarity: 'SSR' | 'SR' | 'R' | 'N';
+  rarity: 'Legendary' | 'Epic' | 'Rare' | 'Common';
   rate: number;
   emoji: string;
   description: string;

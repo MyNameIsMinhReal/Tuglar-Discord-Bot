@@ -71,18 +71,19 @@ async function handleDaily(i: ChatInputCommandInteraction): Promise<void> {
     return;
   }
 
-  const reward = Eco.claimDaily(i.user.id, i.guildId!);
-  const user   = Eco.getOrCreate(i.user.id, i.guildId!);
+  const { reward, streak } = Eco.claimDaily(i.user.id, i.guildId!);
+  const user = Eco.getOrCreate(i.user.id, i.guildId!);
 
   await i.reply({
     embeds: [new EmbedBuilder()
       .setColor(COLOR.ECONOMY)
       .setTitle('💰 Điểm danh hàng ngày!')
       .addFields(
-        { name: '🎁 Nhận được', value: `**+${formatCoins(reward)} coins**`, inline: true },
+        { name: '🎁 Nhận được',      value: `**+${formatCoins(reward)} coins**`,  inline: true },
         { name: '👛 Số dư hiện tại', value: `**${formatCoins(user.balance)} coins**`, inline: true },
+        { name: '🔥 Streak',         value: `**${streak} ngày**`,                 inline: true },
       )
-      .setFooter({ text: 'Quay lại ngày mai để nhận tiếp!' })
+      .setFooter({ text: streak >= 7 ? '🔥 Streak 7+ ngày — giữ vững nhé!' : 'Quay lại ngày mai để nhận tiếp!' })
       .setTimestamp()],
   });
 }

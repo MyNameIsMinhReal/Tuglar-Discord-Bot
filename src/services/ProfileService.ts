@@ -1,5 +1,3 @@
-import path from 'node:path';
-import fs from 'node:fs';
 import { db } from '../database';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -7,7 +5,7 @@ export interface ProfileCosmetic {
   id: string;
   name: string;
   type: 'background' | 'frame' | 'title' | 'accent' | 'sticker' | 'name_style';
-  rarity: 'N' | 'R' | 'SR' | 'SSR';
+  rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
   price: number;
   description: string;
   isLimited?: boolean;
@@ -32,19 +30,65 @@ export interface OwnedCosmetic {
   expires_at: string | null;
 }
 
-// ── Data Loading ───────────────────────────────────────────────────
-let catalog: ProfileCosmetic[] = [];
-try {
-  catalog = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), 'data', 'profile_cosmetics.json'), 'utf-8')
-  );
-} catch {
-  catalog = [];
+// ── DB row → ProfileCosmetic ───────────────────────────────────────
+interface CosmeticRow {
+  id: string;
+  name: string;
+  type: string;
+  rarity: string;
+  price: number;
+  description: string;
+  is_limited: number;
+  available_until: string | null;
 }
 
-export function getCatalog(): ProfileCosmetic[] { return catalog; }
-export function getById(id: string): ProfileCosmetic | undefined { return catalog.find(c => c.id === id); }
-export function getByType(type: string): ProfileCosmetic[] { return catalog.filter(c => c.type === type); }
+function rowToCosmetic(r: CosmeticRow): ProfileCosmetic {
+  return {
+    id:             r.id,
+    name:           r.name,
+    type:           r.type as ProfileCosmetic['type'],
+    rarity:         r.rarity as ProfileCosmetic['rarity'],
+    price:          r.price,
+    description:    r.description,
+    isLimited:      r.is_limited === 1,
+    availableUntil: r.available_until ?? undefined,
+  };
+}
+
+// ── Catalog (DB) ───────────────────────────────────────────────────
+export function getCatalog(): ProfileCosmetic[] {
+  return (db.prepare('SELECT * FROM profile_cosmetics ORDER BY type, price').all() as CosmeticRow[]).map(rowToCosmetic);
+}
+
+export function getById(id: string): ProfileCosmetic | undefined {
+  const row = db.prepare('SELECT * FROM profile_cosmetics WHERE id = ?').get(id) as CosmeticRow | undefined;
+  return row ? rowToCosmetic(row) : undefined;
+}
+
+export function getByType(type: string): ProfileCosmetic[] {
+  return (db.prepare('SELECT * FROM profile_cosmetics WHERE type = ? ORDER BY price').all(type) as CosmeticRow[]).map(rowToCosmetic);
+}
+
+export function addCosmetic(item: Omit<ProfileCosmetic, 'isLimited' | 'availableUntil'> & { isLimited?: boolean; availableUntil?: string }): void {
+  db.prepare(`
+    INSERT OR REPLACE INTO profile_cosmetics (id, name, type, rarity, price, description, is_limited, available_until)
+    VALUES (@id, @name, @type, @rarity, @price, @description, @is_limited, @available_until)
+  `).run({
+    id:              item.id,
+    name:            item.name,
+    type:            item.type,
+    rarity:          item.rarity,
+    price:           item.price,
+    description:     item.description,
+    is_limited:      item.isLimited ? 1 : 0,
+    available_until: item.availableUntil ?? null,
+  });
+}
+
+export function removeCosmetic(id: string): boolean {
+  const result = db.prepare('DELETE FROM profile_cosmetics WHERE id = ?').run(id);
+  return result.changes > 0;
+}
 
 // ── Ownership ──────────────────────────────────────────────────────
 export function getOwned(userId: string, guildId: string): OwnedCosmetic[] {

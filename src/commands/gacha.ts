@@ -11,6 +11,7 @@ import * as Eco from '../services/EconomyService';
 import * as Achievement from '../services/AchievementService';
 import { COLOR, RARITY_COLORS, RARITY_STARS } from '../utils/embeds';
 import { formatCoins } from '../utils/helpers';
+import { composeCardWithOverlay } from '../utils/cardCompose';
 import { GachaItem } from '../types';
 import { cfg } from '../config';
 
@@ -106,8 +107,8 @@ function sealedPackEmbed(cost: number, size: number): EmbedBuilder {
   return embed;
 }
 
-function suspenseEmbed(rarity: 'SSR' | 'SR'): EmbedBuilder {
-  if (rarity === 'SSR') {
+function suspenseEmbed(rarity: 'Legendary' | 'Epic'): EmbedBuilder {
+  if (rarity === 'Legendary') {
     return new EmbedBuilder()
       .setColor(0xFFD700)
       .setTitle('✨  Ánh sáng chói lóa...')
@@ -130,21 +131,21 @@ function cardRevealEmbed(item: GachaItem, cardNum: number, total: number, filena
 }
 
 function packSummaryEmbed(items: GachaItem[], remainingCoins: number): EmbedBuilder {
-  const order: Record<string, number> = { SSR: 0, SR: 1, R: 2, N: 3 };
-  const sorted   = [...items].sort((a, b) => order[a.rarity] - order[b.rarity]);
-  const ssrCount = items.filter(it => it.rarity === 'SSR').length;
-  const srCount  = items.filter(it => it.rarity === 'SR').length;
+  const order: Record<string, number> = { Legendary: 0, Epic: 1, Rare: 2, Common: 3 };
+  const sorted         = [...items].sort((a, b) => order[a.rarity] - order[b.rarity]);
+  const legendaryCount = items.filter(it => it.rarity === 'Legendary').length;
+  const epicCount      = items.filter(it => it.rarity === 'Epic').length;
 
   const lines = sorted.map(it => `${it.emoji} **${it.name}** — ${it.rarity} ${RARITY_STARS[it.rarity]}`);
 
   let highlight = '';
-  if (ssrCount > 0)     highlight = `\n\n🎉 **${ssrCount} SSR trong pack này!!**`;
-  else if (srCount > 0) highlight = `\n\n⭐ **${srCount} SR — không tệ!**`;
+  if (legendaryCount > 0)     highlight = `\n\n🎉 **${legendaryCount} Legendary trong pack này!!**`;
+  else if (epicCount > 0)     highlight = `\n\n⭐ **${epicCount} Epic — không tệ!**`;
 
   let color: number;
-  if (ssrCount > 0)     color = 0xFFD700;
-  else if (srCount > 0) color = 0xC0C0C0;
-  else                  color = COLOR.INFO;
+  if (legendaryCount > 0)  color = 0xFFD700;
+  else if (epicCount > 0)  color = 0x9B59B6;
+  else                     color = COLOR.INFO;
 
   return new EmbedBuilder()
     .setColor(color)
@@ -224,7 +225,7 @@ async function revealCards(
     const item   = items[idx];
     const isLast = idx === items.length - 1;
 
-    if (item.rarity === 'SSR' || item.rarity === 'SR') {
+    if (item.rarity === 'Legendary' || item.rarity === 'Epic') {
       await i.editReply({ embeds: [suspenseEmbed(item.rarity)], files: [], components: [rowReveal()] });
       if (!await waitForButton(msg, i.user.id, 'pack_reveal')) {
         items.slice(idx).forEach(it => Gacha.saveToInventory(i.user.id, i.guildId!, it));
@@ -233,10 +234,11 @@ async function revealCards(
       }
     }
 
-    const cf = getCardFile(cardId(item));
+    const cf = await composeCardWithOverlay(cardId(item), item.rarity);
+    const attachment = cf ? new AttachmentBuilder(cf.buffer, { name: cf.filename }) : null;
     await i.editReply({
       embeds: [cardRevealEmbed(item, idx + 1, items.length, cf?.filename ?? null)],
-      files: cf ? [cf.attachment] : [],
+      files: attachment ? [attachment] : [],
       components: isLast ? [] : [rowNext()],
     });
     Gacha.saveToInventory(i.user.id, i.guildId!, item);
@@ -272,8 +274,8 @@ async function handlePool(i: ChatInputCommandInteraction): Promise<void> {
 
   const pity    = Gacha.getPityInfo(i.user.id, i.guildId!);
   const pityStr = [
-    `SSR pity: **${pity.rolls_since_ssr}/80** roll${pity.rolls_since_ssr >= 50 ? ' ✨ soft pity!' : ''}`,
-    `SR pity: **${pity.rolls_since_sr}/10** roll`,
+    `Legendary pity: **${pity.rolls_since_ssr}/80** roll${pity.rolls_since_ssr >= 50 ? ' ✨ soft pity!' : ''}`,
+    `Epic pity: **${pity.rolls_since_sr}/10** roll`,
   ].join(' · ');
 
   await i.reply({

@@ -2,6 +2,8 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, Permiss
 import { writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
+import { registerFont } from '../utils/profileCanvas';
+import * as Profile from '../services/ProfileService';
 import { db } from '../database';
 import { COLOR } from '../utils/embeds';
 import * as Eco from '../services/EconomyService';
@@ -112,6 +114,54 @@ export const data = new SlashCommandBuilder()
       )
     )
     .addSubcommand(sub => sub
+      .setName('item_add')
+      .setDescription('[Admin] Thêm cosmetic mới vào shop')
+      .addStringOption(o => o.setName('id').setDescription('ID duy nhất (vd: bg_sakura)').setRequired(true))
+      .addStringOption(o => o.setName('name').setDescription('Tên hiển thị').setRequired(true))
+      .addStringOption(o => o.setName('type').setDescription('Loại cosmetic').setRequired(true)
+        .addChoices(
+          { name: '🖼️ Background', value: 'background' },
+          { name: '🔲 Frame',      value: 'frame'       },
+          { name: '🏷️ Title',      value: 'title'       },
+          { name: '🎨 Accent',     value: 'accent'      },
+          { name: '🌀 Sticker',    value: 'sticker'     },
+          { name: '✍️ Name Style', value: 'name_style'  },
+        ))
+      .addStringOption(o => o.setName('rarity').setDescription('Độ hiếm').setRequired(true)
+        .addChoices(
+          { name: 'Common',    value: 'Common'    },
+          { name: 'Rare',      value: 'Rare'      },
+          { name: 'Epic',      value: 'Epic'      },
+          { name: 'Legendary', value: 'Legendary' },
+        ))
+      .addIntegerOption(o => o.setName('price').setDescription('Giá (coins)').setRequired(true).setMinValue(1))
+      .addStringOption(o => o.setName('description').setDescription('Mô tả ngắn').setRequired(true))
+      .addBooleanOption(o => o.setName('limited').setDescription('Item giới hạn? (mặc định: false)'))
+    )
+    .addSubcommand(sub => sub
+      .setName('item_remove')
+      .setDescription('[Admin] Xóa cosmetic khỏi shop')
+      .addStringOption(o => o.setName('id').setDescription('ID của cosmetic cần xóa').setRequired(true))
+    )
+    .addSubcommand(sub => sub
+      .setName('font_upload')
+      .setDescription('[Admin] Upload font cho profile card')
+      .addStringOption(o => o
+        .setName('font_name')
+        .setDescription('Tên font family (vd: MyFont)')
+        .setRequired(true)
+      )
+      .addAttachmentOption(o => o
+        .setName('file')
+        .setDescription('File font (.ttf hoặc .otf)')
+        .setRequired(true)
+      )
+      .addBooleanOption(o => o
+        .setName('set_active')
+        .setDescription('Đặt làm font mặc định cho profile card (mặc định: true)')
+      )
+    )
+    .addSubcommand(sub => sub
       .setName('season_reset')
       .setDescription('[Admin] Kết thúc season hiện tại — reset 50% coins, chuyển sang prestige')
     )
@@ -137,6 +187,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   } else if (group === 'content') {
     switch (sub) {
       case 'bg_upload':    return handleBgUpload(interaction);
+      case 'font_upload':  return handleFontUpload(interaction);
+      case 'item_add':     return handleItemAdd(interaction);
+      case 'item_remove':  return handleItemRemove(interaction);
       case 'season_reset': return handleSeasonReset(interaction);
     }
   }
@@ -327,6 +380,104 @@ async function handleBgUpload(i: ChatInputCommandInteraction): Promise<void> {
       )
       .setImage(attachment.url)
       .setFooter({ text: 'Dùng /profile view để xem kết quả' })],
+  });
+}
+
+// ── Font Upload ────────────────────────────────────────────────────
+async function handleFontUpload(i: ChatInputCommandInteraction): Promise<void> {
+  const fontName  = i.options.getString('font_name', true).trim();
+  const attachment = i.options.getAttachment('file', true);
+  const setActive  = i.options.getBoolean('set_active') ?? true;
+
+  const ext = attachment.name?.match(/\.(ttf|otf)$/i)?.[1]?.toLowerCase();
+  if (!ext) {
+    await i.reply({
+      embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription('❌ Chỉ hỗ trợ file .ttf hoặc .otf')],
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  await i.deferReply({ flags: MessageFlags.Ephemeral });
+
+  const fontsDir = join(process.cwd(), 'assets/fonts');
+  const filename = `${fontName.replace(/\s+/g, '_')}.${ext}`;
+  const destPath = join(fontsDir, filename);
+
+  const res    = await fetch(attachment.url);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  await writeFile(destPath, buffer);
+
+  registerFont(destPath, fontName);
+
+  if (setActive) {
+    await writeFile(
+      join(fontsDir, 'active.json'),
+      JSON.stringify({ family: fontName }, null, 2),
+    );
+  }
+
+  await i.editReply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.SUCCESS)
+      .setTitle('✅ Font upload thành công!')
+      .addFields(
+        { name: '🔤 Font Family', value: `\`${fontName}\``,                                    inline: true },
+        { name: '📁 File',        value: `${filename} (${(buffer.length / 1024).toFixed(0)} KB)`, inline: true },
+        { name: '🎨 Active',      value: setActive ? '✅ Đặt làm font mặc định' : '—',          inline: true },
+      )
+      .setFooter({ text: 'Dùng /profile để xem kết quả ngay, không cần restart bot' })],
+  });
+}
+
+// ── Item Add / Remove ──────────────────────────────────────────────
+async function handleItemAdd(i: ChatInputCommandInteraction): Promise<void> {
+  const id          = i.options.getString('id', true).trim().toLowerCase().replace(/\s+/g, '_');
+  const name        = i.options.getString('name', true).trim();
+  const type        = i.options.getString('type', true) as Profile.ProfileCosmetic['type'];
+  const rarity      = i.options.getString('rarity', true) as Profile.ProfileCosmetic['rarity'];
+  const price       = i.options.getInteger('price', true);
+  const description = i.options.getString('description', true).trim();
+  const isLimited   = i.options.getBoolean('limited') ?? false;
+
+  Profile.addCosmetic({ id, name, type, rarity, price, description, isLimited });
+
+  await i.reply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.SUCCESS)
+      .setTitle('✅ Đã thêm cosmetic vào shop!')
+      .addFields(
+        { name: 'ID',      value: `\`${id}\``,   inline: true },
+        { name: 'Tên',     value: name,           inline: true },
+        { name: 'Loại',    value: type,           inline: true },
+        { name: 'Rarity',  value: rarity,         inline: true },
+        { name: 'Giá',     value: `${price.toLocaleString('vi-VN')} coins`, inline: true },
+        { name: 'Limited', value: isLimited ? '✅' : '—', inline: true },
+        { name: 'Mô tả',   value: description,    inline: false },
+      )],
+    flags: MessageFlags.Ephemeral,
+  });
+}
+
+async function handleItemRemove(i: ChatInputCommandInteraction): Promise<void> {
+  const id   = i.options.getString('id', true).trim();
+  const item = Profile.getById(id);
+
+  if (!item) {
+    await i.reply({
+      embeds: [new EmbedBuilder().setColor(COLOR.DANGER).setDescription(`❌ Không tìm thấy cosmetic với ID \`${id}\`.`)],
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  Profile.removeCosmetic(id);
+
+  await i.reply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR.WARNING)
+      .setDescription(`🗑️ Đã xóa **${item.name}** (\`${id}\`) khỏi shop.\n⚠️ Người đã mua vẫn giữ item trong kho.`)],
+    flags: MessageFlags.Ephemeral,
   });
 }
 
